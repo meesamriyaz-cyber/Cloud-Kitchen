@@ -1,0 +1,107 @@
+{
+  "project_name": "Mukhtar Cloud Kitchen",
+  "theme": "Light theme preferable with dark mode toggle",
+  "typography": {
+    "headings": "Outfit",
+    "body": "Manrope",
+    "rules": [
+      "Use tracking-tight for large headings.",
+      "Never use Inter for headings.",
+      "Line height: leading-none for headers, leading-relaxed for body."
+    ]
+  },
+  "colors": {
+    "primary": "#E76F51",
+    "primary_hover": "#D85C3E",
+    "secondary": "#F4A261",
+    "background_light": "#FDFBF7",
+    "surface_light": "#FFFFFF",
+    "text_main": "#1C1917",
+    "text_muted": "#78716C",
+    "border": "#E7E5E4",
+    "status": {
+      "success": "#22C55E",
+      "warning": "#F59E0B",
+      "error": "#EF4444"
+    },
+    "archetype": "Organic & Earthy (Modified for Food with Terracotta appetite-stimulating primary)"
+  },
+  "visual_enhancers": {
+    "shadows": "Ambient diffuse shadows: shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
+    "borders": "1px border-border/40 on cards.",
+    "radii": "rounded-2xl for main cards, rounded-full for buttons/pills.",
+    "surfaces": "Sticky header MUST use backdrop-blur-xl bg-white/70. DO NOT use complete transparent background in header, overlays, any surface that has content under it."
+  },
+  "components": {
+    "buttons": "Pill-shaped (rounded-full), solid primary for main actions, subtle ghost for secondary.",
+    "cards": "Image takes 40% (left or top), content 60%. Hover: -translate-y-1 with expanded shadow.",
+    "navigation": "Sticky top navbar. Bottom nav for mobile is recommended for food apps.",
+    "cart_drawer": "Shadcn Sheet component triggered from nav.",
+    "stepper": "Vertical or horizontal timeline for order status (Placed -> Preparing -> Out for Delivery -> Delivered)."
+  },
+  "layouts": {
+    "home": "Hero section with large mouth-watering image. Horizontal scroll for categories. Bento grid for featured items.",
+    "menu": "Filterable grid (1 col mobile, 2-3 col desktop) with category sticky sidebar.",
+    "admin": "Sidebar navigation. High-density grid for metrics. Standard tables for order management.",
+    "order_tracking": "Centered card with map placeholder and status stepper."
+  },
+  "motion": {
+    "framer_motion": true,
+    "rules": [
+      "Use hover states on all interactive elements.",
+      "Page load staggered fade-up for menu items.",
+      "Sheet/Drawer slide-in for cart."
+    ]
+  },
+  "image_urls": [
+    {
+      "category": "Hero Image",
+      "url": "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwyfHxpbmRpYW4lMjBiaXJ5YW5pJTIwZGlzaHxlbnwwfHx8fDE3ODU4NjAwODB8MA&ixlib=rb-4.1.0&q=85",
+      "description": "White bowl filled with biryani rice and meat"
+    },
+    {
+      "category": "Tandoor Category",
+      "url": "https://images.unsplash.com/photo-1617692855027-33b14f061079?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDB8MHwxfHNlYXJjaHwyfHx0YW5kb29yaSUyMGNoaWNrZW4lMjBkaXNofGVufDB8fHx8MTc4NTg2MDA4MHww&ixlib=rb-4.1.0&q=85",
+      "description": "Tandoori chicken dish on plate"
+    },
+    {
+      "category": "Biryani Category",
+      "url": "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHw0fHxpbmRpYW4lMjBiaXJ5YW5pJTIwZGlzaHxlbnwwfHx8fDE3ODU4NjAwODB8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Two plates of biryani food"
+    },
+    {
+      "category": "Generic Bowl",
+      "url": "https://images.unsplash.com/photo-1756521976703-253dbd46dadf?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwxfHxyZXN0YXVyYW50JTIwZm9vZCUyMGJvd2x8ZW58MHx8fHwxNzg1ODYwMDgwfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Steak and shrimp bowl"
+    }
+  ],
+  "accessibility": {
+    "contrast_ratio": "Normal text 4.5:1, Large text 3:1.",
+    "testing_attributes": "All interactive and key informational elements MUST include a data-testid attribute.",
+    "focus_states": "Must have HIGHER contrast than default state."
+  },
+  "GENERAL UI UX DESIGN GUIDELINES": [
+    "You tend to converge toward generic, 'on distribution' outputs. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition (e.g., transition: all). Add transitions for specific interactive elements like button, input excluding transforms.",
+    "You MUST NOT center align the app container, i.e., do not add .App { text-align: center; } in the css file.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 for icons. Use lucide-react.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states separate good from extraordinary.",
+    "NEVER use placeholder text for images. Use the provided image_urls.",
+    "Prioritize using pre-existing components from src/components/ui.",
+    "Use `sonner` for toasts.",
+    "The codebase uses .js files, NOT .tsx. Adjust imports and syntax accordingly.",
+    "Ensure optical alignment over geometrical alignment.",
+    "Follow a mobile-first responsive approach.",
+    "Use the 'Bento' Grid Protocol for the home page. Do not use generic 'Bootstrap' columns."
+  ],
+  "instructions_to_main_agent": {
+    "stack": "MERN stack hybrid_fullstack with Tailwind and Shadcn UI in React (.js files).",
+    "key_features": "Landing page, Menu browsing with filters, Cart drawer, Checkout, Order tracking stepper, Auth (JWT+Google), Admin dashboard.",
+    "tech_details": "Implement the UI using .js files as it's a standard MERN app frontend, not TS. Provide the necessary shadcn/framer-motion wrappers in plain JS."
+  }
+}
