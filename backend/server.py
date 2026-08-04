@@ -485,7 +485,7 @@ async def seed_data():
         {"id": f"cat_{uuid.uuid4().hex[:10]}", "name": "Curries", "image_url": "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=400"},
         {"id": f"cat_{uuid.uuid4().hex[:10]}", "name": "Chinese", "image_url": "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400"},
         {"id": f"cat_{uuid.uuid4().hex[:10]}", "name": "Desserts", "image_url": "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400"},
-        {"id": f"cat_{uuid.uuid4().hex[:10]}", "name": "Beverages", "image_url": "https://images.unsplash.com/photo-1523371683702-1a3a5c7cfe0e?w=400"},
+        {"id": f"cat_{uuid.uuid4().hex[:10]}", "name": "Beverages", "image_url": "https://images.unsplash.com/photo-1626200419199-391ae4be7a41?w=400"},
     ]
     await db.categories.insert_many([c.copy() for c in cats])
     cat_by_name = {c["name"]: c["id"] for c in cats}
