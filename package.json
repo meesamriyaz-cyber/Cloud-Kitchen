@@ -1,0 +1,15 @@
+{
+  "name": "mukhtar-kitchen",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm start",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "seed": "cd backend && node index.js & sleep 2 && curl -X POST http://127.0.0.1:8002/api/seed && pkill -f 'node index.js' || true"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

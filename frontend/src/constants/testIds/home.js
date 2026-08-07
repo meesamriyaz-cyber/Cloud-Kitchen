@@ -2,5 +2,6 @@
 // in ./auth.js (keys camelCase, values kebab-case `<feature>-<element>`).
 
 export const HOME = {
-	emergentLink: 'home-emergent-link',
+	heroOrderNow: 'hero-order-now-btn',
+	heroViewMenu: 'hero-view-menu-btn',
 };

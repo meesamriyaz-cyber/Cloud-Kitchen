@@ -1,53 +1,80 @@
-// Mukhtar Cloud Kitchen — MERN backend (Express + MongoDB via Mongoose)
-require('dotenv').config();
-require('express-async-errors');
+import 'dotenv/config';
+import 'express-async-errors';
 
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const cookieParser = require('cookie-parser');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const axios = require('axios');
-const Razorpay = require('razorpay');
-const { randomUUID } = require('crypto');
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import Razorpay from 'razorpay';
+import { randomUUID } from 'crypto';
 
+const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = parseInt(process.env.PORT || '8002', 10);
-const MONGO_URL = process.env.MONGO_URL;
-const DB_NAME = process.env.DB_NAME;
+const MONGO_URL = process.env.MUKHTAR_KITCHEN__MONGO_URI ;
+const DB_NAME = process.env.DB_NAME || 'mukhtar_kitchen';
 const JWT_SECRET = process.env.JWT_SECRET;
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
-
-const rzp = new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET });
-
-// ---------- DB ----------
-mongoose.connect(MONGO_URL, { dbName: DB_NAME }).then(() => {
-  console.log('[mongo] connected', DB_NAME);
-}).catch(err => {
-  console.error('[mongo] connect error', err);
+const RAZORPAY_ENABLED = Boolean(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
+const ORDER_STATUSES = ['placed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'];
+const STAFF_ROLES = new Set(['admin', 'staff']);
+if (!JWT_SECRET) {
+  console.error('[config] JWT_SECRET is required. Set it in backend/.env before starting the API.');
   process.exit(1);
-});
+}
+
+if (!RAZORPAY_ENABLED) {
+  console.warn('[config] Razorpay credentials are not configured. Online payments will be disabled.');
+}
+
+const rzp = RAZORPAY_ENABLED
+  ? new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET })
+  : null;
+
+let mongoConnected = false;
+let mongoConnecting = false;
+
+mongoose.connection.on('connected', () => { mongoConnected = true; });
+mongoose.connection.on('disconnected', () => { mongoConnected = false; });
+mongoose.connection.on('error', () => { mongoConnected = false; });
+
+async function connectMongo(delay = 5000) {
+  if (mongoConnecting) return;
+  mongoConnecting = true;
+  let attempt = 1;
+
+  while (!mongoConnected) {
+    try {
+      await mongoose.connect(MONGO_URL, { dbName: DB_NAME });
+      mongoConnected = true;
+      console.log('[mongo] connected', DB_NAME);
+      break;
+    } catch (err) {
+      mongoConnected = false;
+      console.error(`[mongo] connect error (attempt ${attempt}):`, err.message);
+      attempt += 1;
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+
+  mongoConnecting = false;
+}
+
+connectMongo();
 
 const uid = (prefix) => `${prefix}_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
 
-// ---------- Schemas ----------
 const UserSchema = new mongoose.Schema({
   user_id: { type: String, unique: true, index: true, default: () => uid('user') },
   name: String,
   email: { type: String, lowercase: true, unique: true, index: true },
-  password: String,             // bcrypt hash (local users)
-  role: { type: String, default: 'customer' }, // customer | admin | staff
+  password: String,
+  role: { type: String, default: 'customer' },
   picture: String,
   provider: { type: String, default: 'local' },
   phone: String,
-}, { timestamps: true, versionKey: false });
-
-const SessionSchema = new mongoose.Schema({
-  user_id: { type: String, index: true },
-  session_token: { type: String, unique: true, index: true },
-  expires_at: Date,
 }, { timestamps: true, versionKey: false });
 
 const CategorySchema = new mongoose.Schema({
@@ -71,10 +98,10 @@ const DishSchema = new mongoose.Schema({
 
 const CouponSchema = new mongoose.Schema({
   code: { type: String, unique: true, uppercase: true, trim: true },
-  discount_type: { type: String, default: 'percent' }, // percent | flat
+  discount_type: { type: String, default: 'percent' },
   value: Number,
   min_order: { type: Number, default: 0 },
-  max_discount: { type: Number, default: 0 }, // 0 = unlimited
+  max_discount: { type: Number, default: 0 },
   active: { type: Boolean, default: true },
   redemptions: { type: Number, default: 0 },
 }, { timestamps: true, versionKey: false });
@@ -93,10 +120,9 @@ const OrderSchema = new mongoose.Schema({
   items: [OrderItemSchema],
   address: AddressSchema,
   channel: { type: String, default: 'web', enum: ['web', 'pos', 'android'] },
-  // POS extras
   pos_customer_name: String,
   pos_customer_phone: String,
-  order_type: { type: String, default: 'delivery' }, // delivery | takeaway | dine_in
+  order_type: { type: String, default: 'delivery' },
   table_no: String,
   subtotal: Number,
   discount: { type: Number, default: 0 },
@@ -104,7 +130,7 @@ const OrderSchema = new mongoose.Schema({
   delivery_fee: { type: Number, default: 0 },
   tax: Number,
   total: Number,
-  payment_method: String, // cod | razorpay | cash | upi
+  payment_method: String,
   payment_status: { type: String, default: 'pending' },
   status: { type: String, default: 'placed' },
   razorpay_order_id: String,
@@ -118,7 +144,6 @@ const CounterSchema = new mongoose.Schema({
 }, { versionKey: false });
 
 const User = mongoose.model('User', UserSchema);
-const Session = mongoose.model('Session', SessionSchema, 'user_sessions');
 const Category = mongoose.model('Category', CategorySchema);
 const Dish = mongoose.model('Dish', DishSchema);
 const Coupon = mongoose.model('Coupon', CouponSchema);
@@ -130,15 +155,31 @@ async function nextOrderNo() {
   return c.seq;
 }
 
-// ---------- App ----------
 const app = express();
-app.use(cors({ origin: (process.env.CORS_ORIGINS || '*').split(','), credentials: true }));
+const corsOrigins = (process.env.CORS_ORIGINS || (NODE_ENV === 'production' ? '' : 'http://localhost:3000'))
+  .split(',')
+  .map(v => v.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);
+    if (corsOrigins.includes('*') || corsOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error(`Origin ${origin} is not allowed by CORS`));
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '2mb' }));
-app.use(cookieParser());
+
+app.use((req, res, next) => {
+  if (!mongoConnected && req.path !== '/api/health') {
+    return res.status(503).json({ detail: 'Database unavailable - please start MongoDB' });
+  }
+  next();
+});
 
 app.use((req, _res, next) => { console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`); next(); });
 
-// ---------- Auth helpers ----------
 function signJwt(user_id) {
   return jwt.sign({ user_id }, JWT_SECRET, { expiresIn: '7d' });
 }
@@ -151,20 +192,7 @@ async function resolveUser(req) {
       const payload = jwt.verify(token, JWT_SECRET);
       const u = await User.findOne({ user_id: payload.user_id }).lean();
       if (u) return u;
-    } catch { /* try session */ }
-    const sess = await Session.findOne({ session_token: token }).lean();
-    if (sess && new Date(sess.expires_at) > new Date()) {
-      const u = await User.findOne({ user_id: sess.user_id }).lean();
-      if (u) return u;
-    }
-  }
-  const cookieTok = req.cookies?.session_token;
-  if (cookieTok) {
-    const sess = await Session.findOne({ session_token: cookieTok }).lean();
-    if (sess && new Date(sess.expires_at) > new Date()) {
-      const u = await User.findOne({ user_id: sess.user_id }).lean();
-      if (u) return u;
-    }
+    } catch { /* invalid token */ }
   }
   return null;
 }
@@ -178,7 +206,14 @@ function authRequired(req, res, next) {
 
 function adminOnly(req, res, next) {
   authRequired(req, res, () => {
-    if (req.user.role !== 'admin' && req.user.role !== 'staff') return res.status(403).json({ detail: 'Admin only' });
+    if (!STAFF_ROLES.has(req.user.role)) return res.status(403).json({ detail: 'Staff only' });
+    next();
+  });
+}
+
+function posAccess(req, res, next) {
+  authRequired(req, res, () => {
+    if (!['admin', 'staff', 'salesman'].includes(req.user.role)) return res.status(403).json({ detail: 'POS access only' });
     next();
   });
 }
@@ -191,13 +226,15 @@ function adminStrict(req, res, next) {
 }
 
 function publicUser(u) {
-  return { user_id: u.user_id, name: u.name, email: u.email, role: u.role || 'customer', picture: u.picture || null };
+  return { user_id: u.user_id, name: u.name, email: u.email, role: u.role || 'customer', picture: u.picture || null, phone: u.phone || '' };
 }
 
-// ---------- Health ----------
-app.get('/api/health', (_req, res) => res.json({ ok: true, stack: 'MERN' }));
+app.get('/api/health', (_req, res) => res.json({
+  ok: true,
+  stack: 'MERN',
+  database: mongoConnected ? 'connected' : 'disconnected',
+}));
 
-// ---------- Auth ----------
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password } = req.body || {};
   if (!name || !email || !password) return res.status(400).json({ detail: 'Missing fields' });
@@ -217,40 +254,12 @@ app.post('/api/auth/login', async (req, res) => {
   res.json({ token: signJwt(u.user_id), user: publicUser(u) });
 });
 
-app.post('/api/auth/session', async (req, res) => {
-  const { session_id } = req.body || {};
-  if (!session_id) return res.status(400).json({ detail: 'Missing session_id' });
-  let data;
-  try {
-    const r = await axios.get('https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data',
-      { headers: { 'X-Session-ID': session_id }, timeout: 15000 });
-    data = r.data;
-  } catch { return res.status(401).json({ detail: 'Invalid session' }); }
-
-  const email = String(data.email).toLowerCase();
-  let u = await User.findOne({ email });
-  if (!u) {
-    u = await User.create({ name: data.name, email, picture: data.picture, provider: 'google', role: 'customer' });
-  } else {
-    u.name = data.name; u.picture = data.picture; await u.save();
-  }
-  const session_token = data.session_token;
-  const expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  await Session.create({ user_id: u.user_id, session_token, expires_at });
-  res.cookie('session_token', session_token, { httpOnly: true, secure: true, sameSite: 'none', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 });
-  res.json({ user: publicUser(u), token: session_token });
-});
-
 app.get('/api/auth/me', authRequired, (req, res) => res.json(publicUser(req.user)));
 
-app.post('/api/auth/logout', async (req, res) => {
-  const tok = req.cookies?.session_token;
-  if (tok) await Session.deleteOne({ session_token: tok });
-  res.clearCookie('session_token', { path: '/' });
+app.post('/api/auth/logout', async (_req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- Categories ----------
 app.get('/api/categories', async (_req, res) => {
   const cats = await Category.find({}).sort({ sort: 1, name: 1 }).lean();
   res.json(cats.map(c => ({ id: c.id, name: c.name, image_url: c.image_url, sort: c.sort })));
@@ -269,7 +278,6 @@ app.delete('/api/categories/:id', adminOnly, async (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- Dishes ----------
 app.get('/api/dishes', async (req, res) => {
   const q = {};
   if (req.query.category_id) q.category_id = req.query.category_id;
@@ -297,7 +305,6 @@ app.delete('/api/dishes/:id', adminOnly, async (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- Coupons ----------
 app.get('/api/coupons', adminOnly, async (_req, res) => {
   const list = await Coupon.find({}).lean();
   res.json(list);
@@ -314,17 +321,18 @@ app.post('/api/coupons/apply', async (req, res) => {
   const { code, subtotal } = req.body || {};
   const c = await Coupon.findOne({ code: (code || '').toUpperCase(), active: true });
   if (!c) return res.status(404).json({ detail: 'Invalid or inactive coupon' });
-  if (subtotal < (c.min_order || 0)) return res.status(400).json({ detail: `Minimum order ₹${c.min_order}` });
+  if (subtotal < (c.min_order || 0)) return res.status(400).json({ detail: `Minimum order Rs.${c.min_order}` });
   let discount = c.discount_type === 'percent' ? subtotal * (c.value / 100) : c.value;
   if (c.max_discount && discount > c.max_discount) discount = c.max_discount;
   discount = Math.round(discount * 100) / 100;
   res.json({ code: c.code, discount, discount_type: c.discount_type, value: c.value });
 });
 
-// ---------- Payments (Razorpay) ----------
-app.get('/api/payments/razorpay/config', (_req, res) => res.json({ key_id: RAZORPAY_KEY_ID }));
+app.get('/api/payments/razorpay/config', (_req, res) => res.json({ key_id: RAZORPAY_KEY_ID || null, enabled: RAZORPAY_ENABLED }));
 app.post('/api/payments/razorpay/order', authRequired, async (req, res) => {
+  if (!RAZORPAY_ENABLED || !rzp) return res.status(503).json({ detail: 'Online payments are not configured' });
   const amount = Math.round((req.body.amount || 0) * 100);
+  if (!Number.isFinite(amount) || amount < 100) return res.status(400).json({ detail: 'Invalid payment amount' });
   const order = await rzp.orders.create({ amount, currency: 'INR', payment_capture: 1, receipt: `rcpt_${uid('r')}`.slice(0, 40) });
   res.json(order);
 });
@@ -334,46 +342,107 @@ function verifyRzpSignature(order_id, payment_id, signature) {
   catch { return false; }
 }
 
-// ---------- Orders (Web & Android channel via customer auth) ----------
+function httpError(statusCode, message) {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  return err;
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function validQty(value) {
+  const qty = Number(value);
+  if (!Number.isInteger(qty) || qty < 1 || qty > 99) return null;
+  return qty;
+}
+
+async function normaliseOrderItems(items) {
+  if (!Array.isArray(items) || !items.length) throw httpError(400, 'Empty cart');
+  const ids = items.map(i => i?.dish_id).filter(Boolean);
+  if (ids.length !== items.length) throw httpError(400, 'Invalid cart item');
+
+  const dishes = await Dish.find({ id: { $in: [...new Set(ids)] }, is_available: true }).lean();
+  const byId = new Map(dishes.map(d => [d.id, d]));
+
+  return items.map(raw => {
+    const dish = byId.get(raw.dish_id);
+    if (!dish) throw httpError(400, 'One or more dishes are unavailable');
+    const qty = validQty(raw.qty);
+    if (!qty) throw httpError(400, 'Item quantity must be between 1 and 99');
+    return {
+      dish_id: dish.id,
+      name: dish.name,
+      price: roundMoney(dish.price),
+      qty,
+      image_url: dish.image_url || '',
+    };
+  });
+}
+
+function validateDeliveryAddress(address) {
+  const cleaned = {
+    full_name: String(address?.full_name || '').trim(),
+    phone: String(address?.phone || '').trim(),
+    line1: String(address?.line1 || '').trim(),
+    city: String(address?.city || '').trim(),
+    pincode: String(address?.pincode || '').trim(),
+    notes: String(address?.notes || '').trim(),
+  };
+  if (!cleaned.full_name || !cleaned.phone || !cleaned.line1 || !cleaned.city || !cleaned.pincode) {
+    throw httpError(400, 'Missing delivery details');
+  }
+  return cleaned;
+}
+
 function computeTotals({ items, deliveryFeeRule = true, discount = 0 }) {
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+  const subtotal = roundMoney(items.reduce((s, i) => s + i.price * i.qty, 0));
   const delivery_fee = deliveryFeeRule ? (subtotal >= 499 || subtotal === 0 ? 0 : 39) : 0;
   const taxable = Math.max(0, subtotal - discount);
-  const tax = Math.round(taxable * 0.05 * 100) / 100;
-  const total = Math.round((taxable + delivery_fee + tax) * 100) / 100;
-  return { subtotal: Math.round(subtotal * 100) / 100, delivery_fee, tax, total };
+  const tax = roundMoney(taxable * 0.05);
+  const total = roundMoney(taxable + delivery_fee + tax);
+  return { subtotal, delivery_fee, tax, total };
 }
 
 app.post('/api/orders', authRequired, async (req, res) => {
   const { items, address, payment_method, razorpay_order_id, razorpay_payment_id, razorpay_signature, coupon_code, channel } = req.body || {};
-  if (!Array.isArray(items) || !items.length) return res.status(400).json({ detail: 'Empty cart' });
+  const orderItems = await normaliseOrderItems(items);
+  const deliveryAddress = validateDeliveryAddress(address);
 
   let discount = 0, coupon = null;
   if (coupon_code) {
     coupon = await Coupon.findOne({ code: coupon_code.toUpperCase(), active: true });
     if (coupon) {
-      const sub = items.reduce((s, i) => s + i.price * i.qty, 0);
+      const sub = orderItems.reduce((s, i) => s + i.price * i.qty, 0);
       if (sub >= (coupon.min_order || 0)) {
         discount = coupon.discount_type === 'percent' ? sub * (coupon.value / 100) : coupon.value;
         if (coupon.max_discount && discount > coupon.max_discount) discount = coupon.max_discount;
-        discount = Math.round(discount * 100) / 100;
+        discount = roundMoney(discount);
       }
     }
   }
-  const totals = computeTotals({ items, deliveryFeeRule: true, discount });
+  const totals = computeTotals({ items: orderItems, deliveryFeeRule: true, discount });
 
   let payment_status = 'pending';
   if (payment_method === 'razorpay') {
+    if (!RAZORPAY_ENABLED || !rzp) return res.status(503).json({ detail: 'Online payments are not configured' });
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature)
       return res.status(400).json({ detail: 'Missing razorpay data' });
     if (!verifyRzpSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature))
       return res.status(400).json({ detail: 'Invalid payment signature' });
+    const razorpayOrder = await rzp.orders.fetch(razorpay_order_id);
+    if (Number(razorpayOrder.amount) !== Math.round(totals.total * 100)) {
+      return res.status(400).json({ detail: 'Payment amount does not match order total' });
+    }
     payment_status = 'paid';
+  } else if (payment_method !== 'cod') {
+    return res.status(400).json({ detail: 'Invalid payment method' });
   }
 
   const order_no = await nextOrderNo();
   const order = await Order.create({
-    user_id: req.user.user_id, items, address,
+    user_id: req.user.user_id, items: orderItems, address: deliveryAddress,
     channel: channel && ['web', 'android'].includes(channel) ? channel : 'web',
     order_type: 'delivery',
     ...totals, discount, coupon_code: coupon ? coupon.code : null,
@@ -398,34 +467,44 @@ app.get('/api/orders/:oid', authRequired, async (req, res) => {
   res.json(o);
 });
 
-// ---------- POS (in-shop counter) ----------
-app.post('/api/pos/orders', adminOnly, async (req, res) => {
+app.post('/api/pos/orders', posAccess, async (req, res) => {
   const { items, customer_name, customer_phone, order_type, table_no, payment_method } = req.body || {};
-  if (!Array.isArray(items) || !items.length) return res.status(400).json({ detail: 'Empty cart' });
-  const totals = computeTotals({ items, deliveryFeeRule: false });
+  const orderItems = await normaliseOrderItems(items);
+  const safeOrderType = ['takeaway', 'dine_in', 'delivery'].includes(order_type) ? order_type : 'takeaway';
+  const safePaymentMethod = ['cash', 'upi', 'card', 'cod'].includes(payment_method) ? payment_method : 'cash';
+  const totals = computeTotals({ items: orderItems, deliveryFeeRule: safeOrderType === 'delivery' });
   const order_no = await nextOrderNo();
   const order = await Order.create({
     user_id: req.user.user_id,
-    items, channel: 'pos',
-    order_type: order_type || 'takeaway',
-    table_no: table_no || null,
-    pos_customer_name: customer_name || 'Walk-in',
-    pos_customer_phone: customer_phone || '',
+    items: orderItems,
+    channel: 'pos',
+    order_type: safeOrderType,
+    table_no: safeOrderType === 'dine_in' ? String(table_no || '').trim() || null : null,
+    pos_customer_name: String(customer_name || 'Walk-in').trim(),
+    pos_customer_phone: String(customer_phone || '').trim(),
     ...totals,
-    payment_method: payment_method || 'cash',
-    payment_status: 'paid',
+    payment_method: safePaymentMethod,
+    payment_status: 'pending',
     status: 'preparing',
     order_no,
   });
   res.json(order.toObject());
 });
 
-app.get('/api/pos/orders', adminOnly, async (_req, res) => {
+app.post('/api/pos/orders/:id/pay', posAccess, async (req, res) => {
+  const order = await Order.findOne({ id: req.params.id });
+  if (!order) return res.status(404).json({ detail: 'Order not found' });
+  if (order.payment_status === 'paid') return res.json(order.toObject());
+  order.payment_status = 'paid';
+  await order.save();
+  res.json(order.toObject());
+});
+
+app.get('/api/pos/orders', posAccess, async (_req, res) => {
   const orders = await Order.find({ channel: 'pos' }).sort({ created_at: -1 }).limit(50).lean();
   res.json(orders);
 });
 
-// ---------- Admin ----------
 app.get('/api/admin/orders', adminOnly, async (req, res) => {
   const q = {};
   if (req.query.channel) q.channel = req.query.channel;
@@ -435,8 +514,7 @@ app.get('/api/admin/orders', adminOnly, async (req, res) => {
 });
 
 app.put('/api/admin/orders/:oid/status', adminOnly, async (req, res) => {
-  const valid = new Set(['placed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled']);
-  if (!valid.has(req.body?.status)) return res.status(400).json({ detail: 'Invalid status' });
+  if (!ORDER_STATUSES.includes(req.body?.status)) return res.status(400).json({ detail: 'Invalid status' });
   const r = await Order.updateOne({ id: req.params.oid }, { $set: { status: req.body.status } });
   if (!r.matchedCount) return res.status(404).json({ detail: 'Not found' });
   res.json({ ok: true });
@@ -446,7 +524,7 @@ app.get('/api/admin/stats', adminOnly, async (_req, res) => {
   const [total_orders, delivered, active, revenueAgg, byChannel] = await Promise.all([
     Order.countDocuments({}),
     Order.countDocuments({ status: 'delivered' }),
-    Order.countDocuments({ status: { $in: ['placed', 'preparing', 'out_for_delivery'] } }),
+    Order.countDocuments({ status: { $in: ['placed', 'preparing', 'ready', 'out_for_delivery'] } }),
     Order.aggregate([
       { $match: { $or: [{ payment_status: 'paid' }, { status: 'delivered' }] } },
       { $group: { _id: null, revenue: { $sum: '$total' } } },
@@ -454,15 +532,107 @@ app.get('/api/admin/stats', adminOnly, async (_req, res) => {
     Order.aggregate([{ $group: { _id: '$channel', count: { $sum: 1 }, revenue: { $sum: '$total' } } }]),
   ]);
   const channels = {};
-  byChannel.forEach(c => { channels[c._id] = { count: c.count, revenue: Math.round(c.revenue * 100) / 100 }; });
+  byChannel.forEach(c => { channels[c._id || 'unknown'] = { count: c.count, revenue: roundMoney(c.revenue) }; });
   res.json({
     total_orders, delivered, active,
-    revenue: Math.round(((revenueAgg[0]?.revenue) || 0) * 100) / 100,
+    revenue: roundMoney(revenueAgg[0]?.revenue || 0),
     channels,
   });
 });
 
-// ---------- Seed ----------
+app.get('/api/admin/users', adminStrict, async (_req, res) => {
+  const users = await User.find({}).sort({ created_at: -1 }).lean();
+  res.json(users.map(u => ({ ...publicUser(u), phone: u.phone || '', provider: u.provider || 'local' })));
+});
+
+app.post('/api/admin/users', adminStrict, async (req, res) => {
+  const { name, email, password, role } = req.body || {};
+  if (!name || !email || !password || !role) return res.status(400).json({ detail: 'Missing fields' });
+  const existing = await User.findOne({ email: email.toLowerCase() });
+  if (existing) return res.status(400).json({ detail: 'Email already registered' });
+  const hash = await bcrypt.hash(password, 10);
+  const u = await User.create({ name, email: email.toLowerCase(), password: hash, role, provider: 'local' });
+  res.json({ ...publicUser(u), phone: u.phone || '', provider: u.provider || 'local' });
+});
+
+app.put('/api/admin/users/:id', adminStrict, async (req, res) => {
+  const u = await User.findOne({ user_id: req.params.id });
+  if (!u) return res.status(404).json({ detail: 'Not found' });
+  const { name, email, role, password } = req.body || {};
+  if (name) u.name = name;
+  if (email) u.email = email.toLowerCase();
+  if (role) u.role = role;
+  if (password) u.password = await bcrypt.hash(password, 10);
+  await u.save();
+  res.json({ ...publicUser(u), phone: u.phone || '', provider: u.provider || 'local' });
+});
+
+app.delete('/api/admin/users/:id', adminStrict, async (req, res) => {
+  const r = await User.deleteOne({ user_id: req.params.id });
+  if (!r.deletedCount) return res.status(404).json({ detail: 'Not found' });
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/sales/report', adminOnly, async (req, res) => {
+  const { from, to, channel } = req.query;
+  const match = {};
+  if (from || to) {
+    match.created_at = {};
+    if (from) match.created_at.$gte = new Date(from);
+    if (to) match.created_at.$lte = new Date(to);
+  }
+  if (channel && ['web', 'pos', 'android'].includes(channel)) match.channel = channel;
+
+  const [revenueAgg, byChannel, byStatus, byDay, topItems] = await Promise.all([
+    Order.aggregate([
+      { $match: { ...match, $or: [{ payment_status: 'paid' }, { status: 'delivered' }] } },
+      { $group: { _id: null, revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
+    ]),
+    Order.aggregate([
+      { $match: match },
+      { $group: { _id: '$channel', orders: { $sum: 1 }, revenue: { $sum: '$total' } } },
+    ]),
+    Order.aggregate([
+      { $match: match },
+      { $group: { _id: '$status', orders: { $sum: 1 } } },
+    ]),
+    Order.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$created_at' } },
+          orders: { $sum: 1 },
+          revenue: { $sum: '$total' },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+    Order.aggregate([
+      { $match: match },
+      { $unwind: '$items' },
+      { $group: { _id: '$items.name', qty: { $sum: '$items.qty' }, revenue: { $sum: { $multiply: ['$items.price', '$items.qty'] } } } },
+      { $sort: { qty: -1 } },
+      { $limit: 10 },
+    ]),
+  ]);
+
+  const channels = {};
+  byChannel.forEach(c => { channels[c._id || 'unknown'] = { orders: c.orders, revenue: roundMoney(c.revenue) }; });
+  const statuses = {};
+  byStatus.forEach(s => { statuses[s._id || 'unknown'] = s.orders; });
+  const daily = byDay.map(d => ({ date: d._id, orders: d.orders, revenue: roundMoney(d.revenue) }));
+  const items = topItems.map(i => ({ name: i._id, qty: i.qty, revenue: roundMoney(i.revenue) }));
+
+  res.json({
+    revenue: roundMoney(revenueAgg[0]?.revenue || 0),
+    orders: revenueAgg[0]?.orders || 0,
+    channels,
+    statuses,
+    daily,
+    items,
+  });
+});
+
 app.post('/api/seed', async (_req, res) => {
   const existing = await Dish.countDocuments({});
   if (existing > 0) return res.json({ ok: true, message: 'Already seeded' });
@@ -471,6 +641,18 @@ app.post('/api/seed', async (_req, res) => {
   if (!admin) {
     const hash = await bcrypt.hash('Admin@123', 10);
     await User.create({ name: 'Admin', email: 'admin@mukhtar.com', password: hash, role: 'admin', provider: 'local' });
+  }
+
+  const salesman = await User.findOne({ email: 'salesman@mukhtar.com' });
+  if (!salesman) {
+    const hash = await bcrypt.hash('Salesman@123', 10);
+    await User.create({ name: 'Salesman', email: 'salesman@mukhtar.com', password: hash, role: 'salesman', provider: 'local' });
+  }
+
+  const customer = await User.findOne({ email: 'customer@mukhtar.com' });
+  if (!customer) {
+    const hash = await bcrypt.hash('Customer@123', 10);
+    await User.create({ name: 'Customer', email: 'customer@mukhtar.com', password: hash, role: 'customer', provider: 'local' });
   }
 
   const cats = [
@@ -500,21 +682,32 @@ app.post('/api/seed', async (_req, res) => {
   ];
   await Dish.insertMany(dishes);
 
-  // Sample coupon
   const c = await Coupon.findOne({ code: 'MUKHTAR20' });
   if (!c) await Coupon.create({ code: 'MUKHTAR20', discount_type: 'percent', value: 20, min_order: 299, max_discount: 150, active: true });
 
-  res.json({ ok: true, categories: cats.length, dishes: dishes.length });
+  res.json({ ok: true, categories: cats.length, dishes: dishes.length, users: { admin: 'admin@mukhtar.com', salesman: 'salesman@mukhtar.com', customer: 'customer@mukhtar.com' } });
 });
 
-// ---------- Error handler ----------
 app.use((err, _req, res, _next) => {
   console.error('[error]', err);
-  res.status(500).json({ detail: err.message || 'Server error' });
+  const status = err.statusCode && err.statusCode >= 400 && err.statusCode < 600 ? err.statusCode : 500;
+  res.status(status).json({ detail: err.message || 'Server error' });
 });
 
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`[express] listening on 127.0.0.1:${PORT}`);
-});
+function startServer(port) {
+  const server = app.listen(port, '127.0.0.1', () => {
+    console.log(`[express] listening on 127.0.0.1:${port}`);
+  });
+  server.on('error', (e) => {
+    if (e.code === 'EADDRINUSE') {
+      console.error(`[express] port ${port} in use, trying ${port + 1}...`);
+      server.close(() => startServer(port + 1));
+    } else {
+      console.error('[express] error', e);
+    }
+  });
+}
+
+startServer(PORT);
 
 process.on('SIGTERM', () => { console.log('SIGTERM'); process.exit(0); });

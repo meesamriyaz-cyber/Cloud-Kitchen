@@ -28,11 +28,6 @@ export function AuthProvider({ children }) {
   }, [applyAuthHeader]);
 
   useEffect(() => {
-    // If OAuth callback in progress, skip /me
-    if (window.location.hash?.includes("session_id=")) {
-      setLoading(false);
-      return;
-    }
     checkAuth();
   }, [checkAuth]);
 
@@ -62,13 +57,8 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  const setSessionUser = (u, t) => {
-    if (t) { localStorage.setItem("mck_token", t); setToken(t); applyAuthHeader(t); }
-    setUser(u);
-  };
-
   return (
-    <AuthCtx.Provider value={{ user, loading, token, login, register, logout, checkAuth, setSessionUser }}>
+    <AuthCtx.Provider value={{ user, loading, token, login, register, logout, checkAuth }}>
       {children}
     </AuthCtx.Provider>
   );
