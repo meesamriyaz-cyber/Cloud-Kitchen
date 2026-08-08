@@ -62,8 +62,7 @@ export default function Checkout() {
       items, address: addr, payment_method: method, coupon_code: appliedCoupon?.code, ...razorpayData
     });
     clear();
-    toast.success("Order placed successfully!");
-    navigate(`/orders/${res.data.id}`);
+    return res.data;
   };
 
   const applyCoupon = async () => {
@@ -94,12 +93,13 @@ export default function Checkout() {
     setPlacing(true);
     try {
       if (method === "cod") {
-        await placeOrder();
+        const order = await placeOrder();
+        navigate(`/payment/success?order_id=${order.id}`);
       } else {
         const ok = await loadRazorpay();
-        if (!ok) { toast.error("Failed to load payment"); return; }
+        if (!ok) { toast.error("Failed to load payment"); setPlacing(false); return; }
         const cfg = await axios.get(`${API}/payments/razorpay/config`);
-        if (!cfg.data.enabled) { toast.error("Online payments are not configured"); return; }
+        if (!cfg.data.enabled) { toast.error("Online payments are not configured"); setPlacing(false); return; }
         const order = await axios.post(`${API}/payments/razorpay/order`, { amount: payableTotal });
         const options = {
           key: cfg.data.key_id,
@@ -112,23 +112,29 @@ export default function Checkout() {
           theme: { color: "#C2410C" },
           handler: async (resp) => {
             try {
-              await placeOrder({
+              const placed = await placeOrder({
                 razorpay_order_id: resp.razorpay_order_id,
                 razorpay_payment_id: resp.razorpay_payment_id,
                 razorpay_signature: resp.razorpay_signature,
               });
+              navigate(`/payment/success?order_id=${placed.id}`);
             } catch (err) {
               toast.error("Payment verification failed");
+              setPlacing(false);
             }
           },
-          modal: { ondismiss: () => setPlacing(false) },
+          modal: {
+            ondismiss: () => {
+              setPlacing(false);
+              navigate(`/payment/failure`);
+            }
+          },
         };
         const rzp = new window.Razorpay(options);
         rzp.open();
       }
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to place order");
-    } finally {
       setPlacing(false);
     }
   };

@@ -222,15 +222,15 @@ export default function POS() {
       setLastOrder(res.data);
       setPaymentStep("completed");
       toast.success("Payment confirmed");
-      setTimeout(() => {
-        setPaymentStep(null);
-        setLastOrder(null);
-        setPaymentLink("");
-        setUpiDeepLink("");
-      }, 2000);
     } catch (err) {
       toast.error(err.response?.data?.detail || "Payment failed");
     }
+  };
+
+  const openInvoice = () => {
+    if (!lastOrder) return;
+    const url = `/orders/${lastOrder.id}/invoice`;
+    window.open(url, "_blank", "width=800,height=900");
   };
 
   const generatePaymentLink = async () => {
@@ -650,9 +650,14 @@ export default function POS() {
                     <div className="font-display text-xl font-semibold">Payment Successful</div>
                     <div className="text-sm text-stone-500 mt-1">Order #{shortOrderId(lastOrder)} has been paid</div>
                   </div>
-                  <Button variant="outline" className="rounded-full" onClick={() => { setPaymentStep(null); setLastOrder(null); }}>
-                    Done
-                  </Button>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <Button variant="outline" className="rounded-full" onClick={openInvoice}>
+                      <Printer size={16} className="mr-2" /> Open Invoice
+                    </Button>
+                    <Button variant="outline" className="rounded-full" onClick={() => { setPaymentStep(null); setLastOrder(null); }}>
+                      Done
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

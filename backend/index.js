@@ -38,6 +38,11 @@ const ORDER_STATUS_LABELS = {
 };
 const STAFF_ROLES = new Set(['admin', 'staff']);
 const KITCHEN_ROLES = new Set(['admin', 'staff', 'chef']);
+
+function orderCustomer(order) {
+  return order?.address?.full_name || order?.pos_customer_name || 'Walk-in';
+}
+
 if (!JWT_SECRET) {
   console.error('[config] JWT_SECRET is required. Set it in backend/.env before starting the API.');
   process.exit(1);
@@ -585,6 +590,43 @@ app.get('/api/orders/:oid', authRequired, async (req, res) => {
     return res.status(403).json({ detail: 'Forbidden' });
   }
   res.json(o);
+});
+
+app.get('/api/orders/:oid/invoice', authRequired, async (req, res) => {
+  const o = await Order.findOne({ id: req.params.oid }).lean();
+  if (!o) return res.status(404).json({ detail: 'Not found' });
+  if (o.user_id !== req.user.user_id && req.user.role !== 'admin' && req.user.role !== 'staff') {
+    return res.status(403).json({ detail: 'Forbidden' });
+  }
+  const customer = orderCustomer(o);
+  const items = o.items.map(i => ({
+    name: i.name,
+    qty: i.qty,
+    price: i.price,
+    total: roundMoney(i.price * i.qty),
+  }));
+  const invoice = {
+    id: o.id,
+    order_no: o.order_no,
+    created_at: o.created_at,
+    customer,
+    address: o.address,
+    channel: o.channel,
+    order_type: o.order_type,
+    table_no: o.table_no || null,
+    items,
+    subtotal: o.subtotal,
+    discount: o.discount,
+    coupon_code: o.coupon_code,
+    delivery_fee: o.delivery_fee,
+    tax: o.tax,
+    total: o.total,
+    payment_method: o.payment_method,
+    payment_status: o.payment_status,
+    status: o.status,
+    razorpay_payment_id: o.razorpay_payment_id,
+  };
+  res.json(invoice);
 });
 
 app.post('/api/pos/orders', posAccess, async (req, res) => {
