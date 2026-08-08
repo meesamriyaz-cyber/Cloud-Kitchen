@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { randomUUID } from 'crypto';
+import multer from 'multer';
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = parseInt(process.env.PORT || '8002', 10);
@@ -19,7 +20,24 @@ const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 const RAZORPAY_ENABLED = Boolean(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
 const ORDER_STATUSES = ['placed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'];
+const ORDER_STATUS_TRANSITIONS = {
+  placed: ['preparing', 'cancelled'],
+  preparing: ['ready', 'cancelled'],
+  ready: ['out_for_delivery', 'cancelled'],
+  out_for_delivery: ['delivered', 'cancelled'],
+  delivered: [],
+  cancelled: [],
+};
+const ORDER_STATUS_LABELS = {
+  placed: 'Placed',
+  preparing: 'Preparing',
+  ready: 'Ready',
+  out_for_delivery: 'Out for Delivery',
+  delivered: 'Delivered',
+  cancelled: 'Cancelled',
+};
 const STAFF_ROLES = new Set(['admin', 'staff']);
+const KITCHEN_ROLES = new Set(['admin', 'staff', 'chef']);
 if (!JWT_SECRET) {
   console.error('[config] JWT_SECRET is required. Set it in backend/.env before starting the API.');
   process.exit(1);
@@ -32,6 +50,40 @@ if (!RAZORPAY_ENABLED) {
 const rzp = RAZORPAY_ENABLED
   ? new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET })
   : null;
+
+const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY;
+const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
+const CLOUDINARY_ENABLED = Boolean(
+  CLOUDINARY_CLOUD_NAME &&
+  CLOUDINARY_API_KEY &&
+  CLOUDINARY_API_SECRET &&
+  CLOUDINARY_CLOUD_NAME !== 'your_cloud_name' &&
+  CLOUDINARY_API_KEY !== 'your_api_key' &&
+  CLOUDINARY_API_SECRET !== 'your_api_secret'
+);
+
+if (!CLOUDINARY_ENABLED) {
+  console.warn('[config] Cloudinary credentials are not configured. Image uploads will be disabled.');
+}
+
+let cloudinaryInstance = null;
+if (CLOUDINARY_ENABLED) {
+  try {
+    const cloudinary = await import('cloudinary');
+    cloudinaryInstance = cloudinary.default;
+    cloudinaryInstance.config({ cloud_name: CLOUDINARY_CLOUD_NAME, api_key: CLOUDINARY_API_KEY, api_secret: CLOUDINARY_API_SECRET });
+    try {
+      await cloudinaryInstance.api.create_folder('mukhtar_kitchen');
+      console.log('[cloudinary] ensured folder mukhtar_kitchen exists');
+    } catch (folderError) {
+      console.warn('[cloudinary] folder check warning', folderError.message);
+    }
+    console.log('[cloudinary] configured');
+  } catch (err) {
+    console.warn('[cloudinary] failed to initialize', err.message);
+  }
+}
 
 let mongoConnected = false;
 let mongoConnecting = false;
@@ -218,11 +270,45 @@ function posAccess(req, res, next) {
   });
 }
 
+function kitchenAccess(req, res, next) {
+  authRequired(req, res, () => {
+    if (!KITCHEN_ROLES.has(req.user.role)) return res.status(403).json({ detail: 'Kitchen access only' });
+    next();
+  });
+}
+
+function orderViewAccess(req, res, next) {
+  authRequired(req, res, () => {
+    if (!['admin', 'staff', 'salesman', 'chef'].includes(req.user.role)) return res.status(403).json({ detail: 'Order view access only' });
+    next();
+  });
+}
+
 function adminStrict(req, res, next) {
   authRequired(req, res, () => {
     if (req.user.role !== 'admin') return res.status(403).json({ detail: 'Admin only' });
     next();
   });
+}
+
+function transitionOrderStatus(order, newStatus) {
+  if (!ORDER_STATUSES.includes(newStatus)) {
+    return { ok: false, error: 'Invalid status' };
+  }
+  if (order.status === newStatus) {
+    return { ok: true, error: null };
+  }
+  const allowed = ORDER_STATUS_TRANSITIONS[order.status] || [];
+  if (!allowed.includes(newStatus)) {
+    return { ok: false, error: `Cannot transition from ${ORDER_STATUS_LABELS[order.status] || order.status} to ${ORDER_STATUS_LABELS[newStatus] || newStatus}` };
+  }
+  order.status = newStatus;
+  if (newStatus === 'delivered' && order.payment_status !== 'paid') {
+    if (['cod', 'cash', 'upi', 'card'].includes(order.payment_method)) {
+      order.payment_status = 'paid';
+    }
+  }
+  return { ok: true, error: null };
 }
 
 function publicUser(u) {
@@ -234,6 +320,28 @@ app.get('/api/health', (_req, res) => res.json({
   stack: 'MERN',
   database: mongoConnected ? 'connected' : 'disconnected',
 }));
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+app.post('/api/upload', adminOnly, upload.single('image'), async (req, res) => {
+  if (!cloudinaryInstance) return res.status(503).json({ detail: 'Image uploads are not configured on the server' });
+  const file = req.file;
+  if (!file) return res.status(400).json({ detail: 'No file uploaded' });
+  if (!file.mimetype.startsWith('image/')) return res.status(400).json({ detail: 'Only image files are allowed' });
+  try {
+    const result = await cloudinaryInstance.uploader.upload(
+      `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+      {
+        folder: 'mukhtar_kitchen',
+        transformation: [{ width: 800, height: 600, crop: 'limit', quality: 'auto', fetch_format: 'auto' }],
+      }
+    );
+    res.json({ url: result.secure_url, public_id: result.public_id });
+  } catch (err) {
+    console.error('[upload] error', err);
+    res.status(500).json({ detail: err.message || 'Upload failed' });
+  }
+});
 
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password } = req.body || {};
@@ -310,8 +418,20 @@ app.get('/api/coupons', adminOnly, async (_req, res) => {
   res.json(list);
 });
 app.post('/api/coupons', adminOnly, async (req, res) => {
-  const c = await Coupon.create({ ...req.body });
-  res.json(c.toObject());
+  const { code, discount_type, value, min_order, max_discount, active } = req.body || {};
+  if (!code || !value) return res.status(400).json({ detail: 'Missing fields' });
+  const c = await Coupon.findOne({ code: code.toUpperCase() });
+  if (c) {
+    c.discount_type = discount_type || c.discount_type;
+    c.value = Number(value);
+    c.min_order = Number(min_order || 0);
+    c.max_discount = Number(max_discount || 0);
+    c.active = Boolean(active);
+    await c.save();
+    return res.json(c.toObject());
+  }
+  const nc = await Coupon.create({ code: code.toUpperCase(), discount_type: discount_type || 'percent', value: Number(value), min_order: Number(min_order || 0), max_discount: Number(max_discount || 0), active: Boolean(active) });
+  res.json(nc.toObject());
 });
 app.delete('/api/coupons/:code', adminOnly, async (req, res) => {
   await Coupon.deleteOne({ code: req.params.code.toUpperCase() });
@@ -471,7 +591,7 @@ app.post('/api/pos/orders', posAccess, async (req, res) => {
   const { items, customer_name, customer_phone, order_type, table_no, payment_method } = req.body || {};
   const orderItems = await normaliseOrderItems(items);
   const safeOrderType = ['takeaway', 'dine_in', 'delivery'].includes(order_type) ? order_type : 'takeaway';
-  const safePaymentMethod = ['cash', 'upi', 'card', 'cod'].includes(payment_method) ? payment_method : 'cash';
+  const safePaymentMethod = ['cash', 'upi', 'card', 'cod', 'razorpay'].includes(payment_method) ? payment_method : 'cash';
   const totals = computeTotals({ items: orderItems, deliveryFeeRule: safeOrderType === 'delivery' });
   const order_no = await nextOrderNo();
   const order = await Order.create({
@@ -485,7 +605,7 @@ app.post('/api/pos/orders', posAccess, async (req, res) => {
     ...totals,
     payment_method: safePaymentMethod,
     payment_status: 'pending',
-    status: 'preparing',
+    status: 'placed',
     order_no,
   });
   res.json(order.toObject());
@@ -500,12 +620,69 @@ app.post('/api/pos/orders/:id/pay', posAccess, async (req, res) => {
   res.json(order.toObject());
 });
 
-app.get('/api/pos/orders', posAccess, async (_req, res) => {
+app.post('/api/pos/orders/:id/payment-link', posAccess, async (req, res) => {
+  const order = await Order.findOne({ id: req.params.id });
+  if (!order) return res.status(404).json({ detail: 'Order not found' });
+  if (!RAZORPAY_ENABLED) return res.status(400).json({ detail: 'Razorpay not configured' });
+  try {
+    const link = await rzp.paymentLink.create({
+      amount: Math.round(order.total * 100),
+      currency: 'INR',
+      reference_id: order.id,
+      description: `Order #${order.order_no} - Mukhtar Cloud Kitchen`,
+      notify: { sms: false, email: false },
+      reminder_enable: false,
+    });
+    res.json({ link_url: link.short_url, link_id: link.id });
+  } catch (err) {
+    console.error('[razorpay] payment link error', err);
+    res.status(500).json({ detail: 'Failed to create payment link' });
+  }
+});
+
+app.post('/api/pos/orders/:id/upi-deep-link', posAccess, async (req, res) => {
+  const order = await Order.findOne({ id: req.params.id });
+  if (!order) return res.status(404).json({ detail: 'Order not found' });
+  const { upi_id = 'mukhtar@okhdfcbank' } = req.body || {};
+  const upiUrl = `upi://pay?pa=${encodeURIComponent(upi_id)}&pn=${encodeURIComponent('Mukhtar Cloud Kitchen')}&am=${order.total}&cu=INR&tn=${encodeURIComponent(`Order #${order.order_no}`)}`;
+  res.json({ upi_url: upiUrl, upi_id });
+});
+
+app.post('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), (req, res) => {
+  const signature = req.headers['x-razorpay-signature'];
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.warn('[webhook] RAZORPAY_WEBHOOK_SECRET not set, skipping verification');
+  } else {
+    const expected = crypto.createHmac('sha256', webhookSecret).update(req.body).digest('hex');
+    if (!crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signature || '', 'hex'))) {
+      return res.status(400).json({ detail: 'Invalid signature' });
+    }
+  }
+  let event;
+  try { event = JSON.parse(req.body.toString()); } catch { return res.status(400).json({ detail: 'Invalid JSON' }); }
+  if (event.event === 'payment.captured' || event.event === 'payment_link.paid') {
+    const payment = event.payload?.payment || event.payload?.payment_link?.payment;
+    const orderId = payment?.order_id || event.payload?.payment_link?.entity?.order_id;
+    if (orderId) {
+      Order.findOne({ razorpay_order_id: orderId }).then(order => {
+        if (order && order.payment_status !== 'paid') {
+          order.payment_status = 'paid';
+          order.razorpay_payment_id = payment?.id || event.payload?.payment_link?.entity?.payment_id;
+          order.save().then(() => console.log('[webhook] order paid', order.id)).catch(console.error);
+        }
+      }).catch(console.error);
+    }
+  }
+  res.json({ ok: true });
+});
+
+app.get('/api/pos/orders', kitchenAccess, async (_req, res) => {
   const orders = await Order.find({ channel: 'pos' }).sort({ created_at: -1 }).limit(50).lean();
   res.json(orders);
 });
 
-app.get('/api/admin/orders', adminOnly, async (req, res) => {
+app.get('/api/admin/orders', orderViewAccess, async (req, res) => {
   const q = {};
   if (req.query.channel) q.channel = req.query.channel;
   if (req.query.status) q.status = req.query.status;
@@ -513,11 +690,13 @@ app.get('/api/admin/orders', adminOnly, async (req, res) => {
   res.json(orders);
 });
 
-app.put('/api/admin/orders/:oid/status', adminOnly, async (req, res) => {
-  if (!ORDER_STATUSES.includes(req.body?.status)) return res.status(400).json({ detail: 'Invalid status' });
-  const r = await Order.updateOne({ id: req.params.oid }, { $set: { status: req.body.status } });
-  if (!r.matchedCount) return res.status(404).json({ detail: 'Not found' });
-  res.json({ ok: true });
+app.put('/api/admin/orders/:oid/status', kitchenAccess, async (req, res) => {
+  const order = await Order.findOne({ id: req.params.oid });
+  if (!order) return res.status(404).json({ detail: 'Not found' });
+  const result = transitionOrderStatus(order, req.body?.status);
+  if (!result.ok) return res.status(400).json({ detail: result.error });
+  await order.save();
+  res.json({ ok: true, status: order.status });
 });
 
 app.get('/api/admin/stats', adminOnly, async (_req, res) => {
@@ -634,9 +813,6 @@ app.get('/api/admin/sales/report', adminOnly, async (req, res) => {
 });
 
 app.post('/api/seed', async (_req, res) => {
-  const existing = await Dish.countDocuments({});
-  if (existing > 0) return res.json({ ok: true, message: 'Already seeded' });
-
   const admin = await User.findOne({ email: 'admin@mukhtar.com' });
   if (!admin) {
     const hash = await bcrypt.hash('Admin@123', 10);
@@ -654,6 +830,15 @@ app.post('/api/seed', async (_req, res) => {
     const hash = await bcrypt.hash('Customer@123', 10);
     await User.create({ name: 'Customer', email: 'customer@mukhtar.com', password: hash, role: 'customer', provider: 'local' });
   }
+
+  const chef = await User.findOne({ email: 'chef@mukhtar.com' });
+  if (!chef) {
+    const hash = await bcrypt.hash('Chef@123', 10);
+    await User.create({ name: 'Chef', email: 'chef@mukhtar.com', password: hash, role: 'chef', provider: 'local' });
+  }
+
+  const existing = await Dish.countDocuments({});
+  if (existing > 0) return res.json({ ok: true, message: 'Users seeded', users: { admin: 'admin@mukhtar.com', salesman: 'salesman@mukhtar.com', customer: 'customer@mukhtar.com', chef: 'chef@mukhtar.com' } });
 
   const cats = [
     { name: 'Biryani', image_url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400', sort: 1 },
@@ -685,7 +870,7 @@ app.post('/api/seed', async (_req, res) => {
   const c = await Coupon.findOne({ code: 'MUKHTAR20' });
   if (!c) await Coupon.create({ code: 'MUKHTAR20', discount_type: 'percent', value: 20, min_order: 299, max_discount: 150, active: true });
 
-  res.json({ ok: true, categories: cats.length, dishes: dishes.length, users: { admin: 'admin@mukhtar.com', salesman: 'salesman@mukhtar.com', customer: 'customer@mukhtar.com' } });
+  res.json({ ok: true, categories: cats.length, dishes: dishes.length, users: { admin: 'admin@mukhtar.com', salesman: 'salesman@mukhtar.com', customer: 'customer@mukhtar.com', chef: 'chef@mukhtar.com' } });
 });
 
 app.use((err, _req, res, _next) => {

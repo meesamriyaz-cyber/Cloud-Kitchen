@@ -16,7 +16,8 @@ export default function Layout() {
   const location = useLocation();
   const isStaff = user && ["admin", "staff"].includes(user.role);
   const isSalesman = user && user.role === "salesman";
-  const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/pos");
+  const isChef = user && user.role === "chef";
+  const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/pos") || location.pathname.startsWith("/chef");
 
   const nav = [
     { to: "/", label: "Home", icon: Home },
@@ -28,8 +29,11 @@ export default function Layout() {
       { to: "/admin/sales", label: "Sales", icon: TrendingUp },
       { to: "/admin/offers", label: "Offers", icon: Tag },
     ] : []),
-    ...(isStaff || isSalesman ? [
+    ...(isStaff || isSalesman || isChef ? [
       { to: "/pos", label: "POS", icon: MonitorCog },
+    ] : []),
+    ...(isChef ? [
+      { to: "/chef", label: "Kitchen", icon: ChefHat },
     ] : []),
   ];
 
@@ -99,9 +103,14 @@ export default function Layout() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>
                   {isStaff && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
-                  {(isStaff || isSalesman) && (
+                  {(isStaff || isSalesman || isChef) && (
                     <DropdownMenuItem onClick={() => navigate("/pos")} data-testid="menu-pos">
                       <MonitorCog size={14} className="mr-2" /> POS
+                    </DropdownMenuItem>
+                  )}
+                  {isChef && (
+                    <DropdownMenuItem onClick={() => navigate("/chef")} data-testid="menu-chef">
+                      <ChefHat size={14} className="mr-2" /> Kitchen
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />

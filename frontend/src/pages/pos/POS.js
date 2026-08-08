@@ -117,6 +117,10 @@ export default function POS() {
   const [lastOrder, setLastOrder] = useState(null);
   const [paymentStep, setPaymentStep] = useState(null);
   const [cashReceived, setCashReceived] = useState("");
+  const [paymentLink, setPaymentLink] = useState("");
+  const [upiDeepLink, setUpiDeepLink] = useState("");
+  const [upiQrUrl, setUpiQrUrl] = useState("");
+  const [upiCopied, setUpiCopied] = useState(false);
 
   const loadMenu = async () => {
     const [dishRes, catRes] = await Promise.all([axios.get(`${API}/dishes`), axios.get(`${API}/categories`)]);
@@ -200,6 +204,8 @@ export default function POS() {
       setCustomerPhone("");
       setTableNo("");
       setCashReceived("");
+      setPaymentLink("");
+      setUpiDeepLink("");
       setPaymentStep("pending");
       await loadRecent();
     } catch (err) {
@@ -219,9 +225,58 @@ export default function POS() {
       setTimeout(() => {
         setPaymentStep(null);
         setLastOrder(null);
+        setPaymentLink("");
+        setUpiDeepLink("");
       }, 2000);
     } catch (err) {
       toast.error(err.response?.data?.detail || "Payment failed");
+    }
+  };
+
+  const generatePaymentLink = async () => {
+    if (!lastOrder) return;
+    try {
+      const res = await axios.post(`${API}/pos/orders/${lastOrder.id}/payment-link`);
+      setPaymentLink(res.data.link_url);
+      toast.success("Payment link created");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to create payment link");
+    }
+  };
+
+  const generateUpiDeepLink = async () => {
+    if (!lastOrder) return;
+    try {
+      const res = await axios.post(`${API}/pos/orders/${lastOrder.id}/upi-deep-link`, { upi_id: "mukhtar@okhdfcbank" });
+      setUpiDeepLink(res.data.upi_url);
+      setUpiQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(res.data.upi_url)}`);
+      setUpiCopied(false);
+      toast.success("UPI link ready");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to create UPI link");
+    }
+  };
+
+  const openUpiApp = () => {
+    if (!upiDeepLink) return;
+    window.location.href = upiDeepLink;
+  };
+
+  const copyUpiLink = async () => {
+    if (!upiDeepLink) return;
+    try {
+      await navigator.clipboard.writeText(upiDeepLink);
+      setUpiCopied(true);
+      toast.success("UPI link copied");
+      setTimeout(() => setUpiCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy link");
+    }
+  };
+
+  const openPaymentLink = () => {
+    if (paymentLink) {
+      window.open(paymentLink, '_blank');
     }
   };
 
@@ -505,25 +560,72 @@ export default function POS() {
                   )}
 
                   {paymentMethod === "upi" && (
-                    <div className="soft-panel p-4 text-center space-y-3">
-                      <div className="w-48 h-48 mx-auto bg-stone-100 rounded-lg flex items-center justify-center">
-                        <div className="text-center">
-                          <Smartphone size={48} className="mx-auto text-stone-400 mb-2" />
-                          <div className="text-xs text-stone-500">Scan QR Code</div>
+                    <div className="space-y-3">
+                      <div className="soft-panel p-4 text-center space-y-3">
+                        {upiQrUrl ? (
+                          <img
+                            src={upiQrUrl}
+                            alt="UPI QR Code"
+                            className="w-48 h-48 mx-auto rounded-lg border border-stone-200"
+                          />
+                        ) : (
+                          <div className="w-48 h-48 mx-auto bg-stone-100 rounded-lg flex items-center justify-center border-2 border-dashed border-stone-300">
+                            <div className="text-center">
+                              <Smartphone size={48} className="mx-auto text-stone-400 mb-2" />
+                              <div className="text-xs text-stone-500">QR Code</div>
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <div className="text-xs text-stone-500">UPI ID</div>
+                          <div className="font-mono text-sm font-semibold">mukhtar@okhdfcbank</div>
                         </div>
+                        {upiDeepLink && (
+                          <div className="text-left">
+                            <div className="text-xs text-stone-500 mb-1">Payment Link</div>
+                            <div className="flex items-center gap-2">
+                              <code className="flex-1 text-xs bg-stone-100 p-2 rounded break-all">{upiDeepLink}</code>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-full shrink-0"
+                                onClick={copyUpiLink}
+                              >
+                                {upiCopied ? "Copied" : "Copy"}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <div className="text-xs text-stone-500">UPI ID</div>
-                        <div className="font-mono text-sm font-semibold">mukhtar@upi</div>
-                      </div>
+                      <Button variant="outline" className="w-full rounded-full" onClick={generateUpiDeepLink}>
+                        <Smartphone size={16} className="mr-2" />
+                        Generate UPI Link
+                      </Button>
+                      {upiDeepLink && (
+                        <Button className="w-full rounded-full bg-green-600 hover:bg-green-700" onClick={openUpiApp}>
+                          <Smartphone size={16} className="mr-2" />
+                          Open UPI App
+                        </Button>
+                      )}
                     </div>
                   )}
 
                   {paymentMethod === "card" && (
-                    <div className="soft-panel p-4 text-center space-y-3">
-                      <CreditCard size={48} className="mx-auto text-stone-400" />
-                      <div className="text-sm text-stone-600">Insert, tap, or swipe card</div>
-                      <div className="text-xs text-stone-500">Waiting for card reader...</div>
+                    <div className="space-y-3">
+                      <div className="soft-panel p-4 text-center space-y-3">
+                        <CreditCard size={48} className="mx-auto text-stone-400" />
+                        <div className="text-sm text-stone-600">Card Payment</div>
+                        <div className="text-xs text-stone-500">Use Razorpay secure checkout</div>
+                      </div>
+                      <Button variant="outline" className="w-full rounded-full" onClick={generatePaymentLink}>
+                        <CreditCard size={16} className="mr-2" />
+                        Generate Payment Link
+                      </Button>
+                      {paymentLink && (
+                        <Button className="w-full rounded-full bg-blue-600 hover:bg-blue-700" onClick={openPaymentLink}>
+                          Pay with Card / UPI
+                        </Button>
+                      )}
                     </div>
                   )}
 

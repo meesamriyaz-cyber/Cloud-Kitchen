@@ -18,6 +18,7 @@ import AdminOrders from "@/pages/admin/AdminOrders";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminSales from "@/pages/admin/AdminSales";
 import AdminOffers from "@/pages/admin/AdminOffers";
+import ChefOrders from "@/pages/chef/ChefOrders";
 import POS from "@/pages/pos/POS";
 import Layout from "@/components/Layout";
 
@@ -46,6 +47,7 @@ function AppRouter() {
         <Route path="/admin/users" element={<ProtectedRoute roles={["admin", "staff"]}><AdminUsers /></ProtectedRoute>} />
         <Route path="/admin/sales" element={<ProtectedRoute roles={["admin", "staff"]}><AdminSales /></ProtectedRoute>} />
         <Route path="/admin/offers" element={<ProtectedRoute roles={["admin", "staff"]}><AdminOffers /></ProtectedRoute>} />
+        <Route path="/chef" element={<ProtectedRoute roles={["admin", "staff", "chef"]}><ChefOrders /></ProtectedRoute>} />
         <Route path="/pos" element={<ProtectedRoute roles={["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
         <Route path="/admin/pos" element={<ProtectedRoute roles={["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
       </Route>

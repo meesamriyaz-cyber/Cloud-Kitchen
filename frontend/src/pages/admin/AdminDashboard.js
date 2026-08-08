@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   CheckCircle2,
+  ChefHat,
   Clock,
   IndianRupee,
   LayoutDashboard,
@@ -73,6 +74,7 @@ export default function AdminDashboard() {
     { to: "/admin/users", title: "Users", copy: "Create and manage roles for staff and customers.", icon: Users, accent: "bg-blue-50 text-blue-700" },
     { to: "/admin/sales", title: "Sales Report", copy: "Revenue trends, channel breakdown, and top sellers.", icon: TrendingUp, accent: "bg-purple-50 text-purple-700" },
     { to: "/admin/offers", title: "Offers", copy: "Create and manage discount codes and promotions.", icon: Tag, accent: "bg-orange-50 text-orange-700" },
+    { to: "/chef", title: "Kitchen Display", copy: "Chef view for updating order status.", icon: ChefHat, accent: "bg-stone-100 text-stone-700" },
   ];
 
   return (

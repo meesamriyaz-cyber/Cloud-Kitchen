@@ -74,6 +74,58 @@ mukhtar-kitchen/
 - **Frontend**: React 19, React Router, Tailwind CSS, Shadcn UI, Axios
 - **Dev**: Nodemon, Concurrently, CRACO
 
+## POS Payments
+
+The POS now supports 3 payment modes:
+
+| Mode | Flow |
+|------|------|
+| Cash | Enter amount received, system calculates change, confirm payment |
+| UPI | Generate UPI deep link or scan QR, open UPI app, confirm payment |
+| Card | Generate Razorpay payment link, customer pays via card/UPI, webhook auto-confirms |
+
+**UPI Deep Link:**
+- Uses `upi://pay` intent to open Google Pay, PhonePe, Paytm, etc.
+- Configure your UPI ID in `backend/.env` or override via API
+
+**Card / Online:**
+- Uses Razorpay Payment Links (web checkout)
+- Configure `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in `backend/.env`
+- Optional: Set `RAZORPAY_WEBHOOK_SECRET` for auto-confirmation via webhooks
+
+**Webhook endpoint:** `POST /api/webhooks/razorpay` — set this URL in Razorpay dashboard to auto-mark orders as paid when payment is captured.
+
+## Image Uploads (Production-Grade with Cloudinary)
+
+Dish images are stored on **Cloudinary CDN** for production performance.
+
+### Setup
+
+1. Create a free Cloudinary account at https://cloudinary.com
+2. Get your credentials from the Cloudinary dashboard:
+   - Cloud Name
+   - API Key
+   - API Secret
+3. Add to `backend/.env`:
+   ```
+   CLOUDINARY_CLOUD_NAME=your_cloud_name
+   CLOUDINARY_API_KEY=your_api_key
+   CLOUDINARY_API_SECRET=your_api_secret
+   ```
+
+### Features
+
+- **Automatic optimization**: Images are resized to 800x600, compressed, and converted to modern formats (WebP/AVIF)
+- **CDN delivery**: Images served from Cloudinary's global CDN
+- **Fallback support**: Admin can still paste direct image URLs if needed
+- **5MB limit**: Max file size per upload
+
+### Admin Menu
+
+- Click **Upload Image** to select from local system
+- Preview appears instantly
+- Paste alternative URL in the text field if needed
+
 ## Default Ports
 
 - Backend: `8002` (auto-increments if busy)

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { ImageIcon, Pencil, Plus, RefreshCcw, Search, Trash2 } from "lucide-react";
+import { ImageIcon, Pencil, Plus, RefreshCcw, Search, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
 import ApiUnavailable from "@/components/ApiUnavailable";
@@ -27,6 +27,8 @@ export default function AdminMenu() {
   const [catFilter, setCatFilter] = useState("all");
   const [availability, setAvailability] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState("");
 
   const load = useCallback(async () => {
     setError("");
@@ -65,20 +67,30 @@ export default function AdminMenu() {
   const openNew = () => {
     setEditing(null);
     setForm({ ...empty, category_id: cats[0]?.id || "" });
+    setImagePreview("");
     setOpen(true);
+  };
+
+  const handleCategoryChange = (value) => {
+    setForm({ ...form, category_id: value });
   };
 
   const openEdit = (d) => {
     setEditing(d.id);
     setForm({ ...d });
+    setImagePreview(d.image_url || "");
     setOpen(true);
   };
 
   const save = async () => {
     try {
       const payload = { ...form, price: Number(form.price) };
-      if (!payload.name || !payload.category_id || !Number.isFinite(payload.price)) {
-        toast.error("Name, category, and price are required");
+      const missing = [];
+      if (!payload.name || !payload.name.trim()) missing.push('name');
+      if (!payload.category_id) missing.push('category');
+      if (!Number.isFinite(payload.price) || Number(payload.price) < 0) missing.push('price');
+      if (missing.length) {
+        toast.error(`Please fill: ${missing.join(', ')}`);
         return;
       }
       if (editing) await axios.put(`${API}/dishes/${editing}`, payload);
@@ -88,6 +100,28 @@ export default function AdminMenu() {
       await load();
     } catch (e) {
       toast.error(e.response?.data?.detail || "Failed");
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await axios.post(`${API}/upload`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setForm(f => ({ ...f, image_url: res.data.url }));
+      setImagePreview(res.data.url);
+      toast.success('Image uploaded');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Upload failed');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -139,7 +173,7 @@ export default function AdminMenu() {
                   <div><Label>Price (Rs.)</Label><Input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} data-testid="dish-form-price" /></div>
                   <div>
                     <Label>Category</Label>
-                    <Select value={form.category_id} onValueChange={v => setForm({...form, category_id: v})}>
+                    <Select value={form.category_id} onValueChange={handleCategoryChange}>
                       <SelectTrigger data-testid="dish-form-category"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {cats.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
@@ -147,7 +181,21 @@ export default function AdminMenu() {
                     </Select>
                   </div>
                 </div>
-                <div><Label>Image URL</Label><Input value={form.image_url} onChange={e => setForm({...form, image_url: e.target.value})} data-testid="dish-form-image" /></div>
+                <div><Label>Image</Label>
+                  <div className="mt-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="dish-image-upload" data-testid="dish-image-input" />
+                      <Button type="button" variant="outline" className="rounded-full bg-white" onClick={() => document.getElementById('dish-image-upload')?.click()} disabled={uploading}>
+                        <Upload size={15} className="mr-2" /> {uploading ? 'Uploading...' : 'Upload Image'}
+                      </Button>
+                      {form.image_url && (
+                        <Button type="button" variant="ghost" size="sm" onClick={() => { setForm({...form, image_url: ""}); setImagePreview(""); }}>Clear</Button>
+                      )}
+                    </div>
+                    <Input value={form.image_url} onChange={e => { setForm({...form, image_url: e.target.value}); setImagePreview(e.target.value); }} placeholder="Or paste image URL here" data-testid="dish-form-image" />
+                    <div className="text-[11px] text-stone-500">Upload an image or paste a URL. Uploaded images are stored on Cloudinary CDN.</div>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Type</Label>
@@ -182,7 +230,7 @@ export default function AdminMenu() {
               </div>
               <div className="hidden md:block">
                 <div className="aspect-square rounded-lg overflow-hidden bg-stone-100 border border-stone-200">
-                  {form.image_url ? <img src={form.image_url} alt="" className="w-full h-full object-cover" /> : <div className="h-full flex items-center justify-center text-stone-400"><ImageIcon /></div>}
+                  {imagePreview ? <img src={imagePreview} alt="" className="w-full h-full object-cover" /> : <div className="h-full flex items-center justify-center text-stone-400"><ImageIcon /></div>}
                 </div>
                 <div className="text-xs text-stone-500 mt-2">Preview uses the public image URL exactly as customers will see it.</div>
               </div>

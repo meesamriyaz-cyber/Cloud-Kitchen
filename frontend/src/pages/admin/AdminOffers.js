@@ -60,7 +60,7 @@ export default function AdminOffers() {
 
   const save = async () => {
     try {
-      if (!form.code || !Number.isFinite(form.value)) {
+      if (!form.code || !Number.isFinite(Number(form.value))) {
         toast.error("Code and value are required");
         return;
       }

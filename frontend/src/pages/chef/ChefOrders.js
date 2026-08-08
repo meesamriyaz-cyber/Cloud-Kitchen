@@ -1,0 +1,132 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import { RefreshCcw, ChefHat } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ApiUnavailable from "@/components/ApiUnavailable";
+import { toast } from "sonner";
+import { formatMoney, humanStatus, orderCustomer, shortOrderId } from "@/lib/format";
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const ORDER_STATUSES = ["placed", "preparing", "ready", "out_for_delivery", "delivered", "cancelled"];
+
+export default function ChefOrders() {
+  const [orders, setOrders] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setError("");
+    setRefreshing(true);
+    try {
+      const params = {};
+      if (statusFilter !== "all") params.status = statusFilter;
+      const [posRes, adminRes] = await Promise.all([
+        axios.get(`${API}/pos/orders`, { params }),
+        axios.get(`${API}/admin/orders`, { params }),
+      ]);
+      const combined = [...posRes.data, ...adminRes.data];
+      const unique = Array.from(new Map(combined.map(o => [o.id, o])).values());
+      unique.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setOrders(unique);
+    } catch (err) {
+      setError(err.response?.data?.detail || "Unable to load orders.");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const updateStatus = async (oid, nextStatus) => {
+    try {
+      await axios.put(`${API}/admin/orders/${oid}/status`, { status: nextStatus });
+      toast.success("Status updated");
+      load();
+    } catch {
+      toast.error("Failed to update status");
+    }
+  };
+
+  const getNextStatuses = (currentStatus) => {
+    switch (currentStatus) {
+      case "placed": return ["preparing", "cancelled"];
+      case "preparing": return ["ready", "cancelled"];
+      case "ready": return ["out_for_delivery", "cancelled"];
+      case "out_for_delivery": return ["delivered", "cancelled"];
+      default: return [];
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-5 py-8">
+      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-white border border-stone-200 px-3 py-1 text-xs font-semibold text-stone-600">
+            <ChefHat size={13} /> Kitchen display
+          </div>
+          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4">Chef Orders</h1>
+          <p className="text-stone-500 text-sm mt-1">Update order status as dishes move through the kitchen.</p>
+        </div>
+        <div className="flex gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="rounded-full bg-white h-10" data-testid="chef-status-filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All orders</SelectItem>
+              {ORDER_STATUSES.map(s => <SelectItem key={s} value={s}>{humanStatus(s)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" className="rounded-full bg-white" onClick={load} disabled={refreshing}>
+            <RefreshCcw size={15} className={refreshing ? "mr-2 animate-spin" : "mr-2"} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {error && <div className="mt-6"><ApiUnavailable message={error} onRetry={load} /></div>}
+
+      <div className="mt-6 grid gap-3">
+        {orders.length === 0 && <div className="soft-panel p-8 text-center text-stone-500">No orders to show.</div>}
+        {orders.map(order => {
+          const nextStatuses = getNextStatuses(order.status);
+          return (
+            <div key={order.id} className="soft-panel p-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-xs text-stone-500">#{shortOrderId(order)}</span>
+                    <Badge className={`border-0 capitalize text-[10px] ${order.status === "placed" ? "bg-blue-100 text-blue-700" : order.status === "preparing" ? "bg-amber-100 text-amber-700" : order.status === "ready" ? "bg-orange-100 text-orange-700" : order.status === "out_for_delivery" ? "bg-purple-100 text-purple-700" : order.status === "delivered" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                      {humanStatus(order.status)}
+                    </Badge>
+                    <span className="text-xs text-stone-500 capitalize">{order.channel || "web"} · {order.order_type || "delivery"}</span>
+                  </div>
+                  <div className="font-semibold text-sm mt-1">{orderCustomer(order)}</div>
+                  <div className="text-xs text-stone-500 truncate">{order.items?.map(i => `${i.qty}x ${i.name}`).join(", ")}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm">{formatMoney(order.total, { noPaise: true })}</span>
+                  {nextStatuses.length > 0 ? (
+                    <Select value="" onValueChange={(v) => updateStatus(order.id, v)}>
+                      <SelectTrigger className="rounded-full h-9 w-40" data-testid={`chef-status-${order.id}`}>
+                        <SelectValue placeholder="Update status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {nextStatuses.map(s => <SelectItem key={s} value={s}>{humanStatus(s)}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className="text-xs text-stone-500">Final state</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
