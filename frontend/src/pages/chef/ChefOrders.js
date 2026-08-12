@@ -64,15 +64,15 @@ export default function ChefOrders() {
     <div className="max-w-7xl mx-auto px-5 py-8">
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-white border border-stone-200 px-3 py-1 text-xs font-semibold text-stone-600">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 px-3 py-1 text-xs font-semibold text-stone-600 dark:text-stone-300">
             <ChefHat size={13} /> Kitchen display
           </div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4">Chef Orders</h1>
-          <p className="text-stone-500 text-sm mt-1">Update order status as dishes move through the kitchen.</p>
+          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4 dark:text-stone-100">Chef Orders</h1>
+          <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Update order status as dishes move through the kitchen.</p>
         </div>
         <div className="flex gap-2">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="rounded-full bg-white h-10" data-testid="chef-status-filter">
+            <SelectTrigger className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200 h-10" data-testid="chef-status-filter">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -80,7 +80,7 @@ export default function ChefOrders() {
               {ORDER_STATUSES.map(s => <SelectItem key={s} value={s}>{humanStatus(s)}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" className="rounded-full bg-white" onClick={load} disabled={refreshing}>
+          <Button variant="outline" className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700" onClick={load} disabled={refreshing}>
             <RefreshCcw size={15} className={refreshing ? "mr-2 animate-spin" : "mr-2"} />
             Refresh
           </Button>
@@ -90,7 +90,7 @@ export default function ChefOrders() {
       {error && <div className="mt-6"><ApiUnavailable message={error} onRetry={load} /></div>}
 
       <div className="mt-6 grid gap-3">
-        {orders.length === 0 && <div className="soft-panel p-8 text-center text-stone-500">No orders to show.</div>}
+        {orders.length === 0 && <div className="soft-panel p-8 text-center text-stone-500 dark:text-stone-400">No orders to show.</div>}
         {orders.map(order => {
           const nextStatuses = getNextStatuses(order.status);
           return (
@@ -98,20 +98,20 @@ export default function ChefOrders() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-xs text-stone-500">#{shortOrderId(order)}</span>
-                    <Badge className={`border-0 capitalize text-[10px] ${order.status === "placed" ? "bg-blue-100 text-blue-700" : order.status === "preparing" ? "bg-amber-100 text-amber-700" : order.status === "ready" ? "bg-orange-100 text-orange-700" : order.status === "out_for_delivery" ? "bg-purple-100 text-purple-700" : order.status === "delivered" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                    <span className="font-mono text-xs text-stone-500 dark:text-stone-400">#{shortOrderId(order)}</span>
+                    <Badge className={`border-0 capitalize text-[10px] ${order.status === "placed" ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" : order.status === "preparing" ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" : order.status === "ready" ? "bg-primary/10 dark:bg-primary/20 text-primary" : order.status === "out_for_delivery" ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300" : order.status === "delivered" ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"}`}>
                       {humanStatus(order.status)}
                     </Badge>
-                    <span className="text-xs text-stone-500 capitalize">{order.channel || "web"} · {order.order_type || "delivery"}</span>
+                    <span className="text-xs text-stone-500 dark:text-stone-400 capitalize">{order.channel || "web"} · {order.order_type || "delivery"}</span>
                   </div>
-                  <div className="font-semibold text-sm mt-1">{orderCustomer(order)}</div>
-                  <div className="text-xs text-stone-500 truncate">{order.items?.map(i => `${i.qty}x ${i.name}`).join(", ")}</div>
+                  <div className="font-semibold text-sm mt-1 dark:text-stone-200">{orderCustomer(order)}</div>
+                  <div className="text-xs text-stone-500 dark:text-stone-400 truncate">{order.items?.map(i => `${i.qty}x ${i.name}`).join(", ")}</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm">{formatMoney(order.total, { noPaise: true })}</span>
+                  <span className="font-semibold text-sm dark:text-stone-200">{formatMoney(order.total, { noPaise: true })}</span>
                   {nextStatuses.length > 0 ? (
                     <Select value="" onValueChange={(v) => updateStatus(order.id, v)}>
-                      <SelectTrigger className="rounded-full h-9 w-40" data-testid={`chef-status-${order.id}`}>
+                      <SelectTrigger className="rounded-full h-9 w-40 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid={`chef-status-${order.id}`}>
                         <SelectValue placeholder="Update status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -119,7 +119,7 @@ export default function ChefOrders() {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <span className="text-xs text-stone-500">Final state</span>
+                    <span className="text-xs text-stone-500 dark:text-stone-400">Final state</span>
                   )}
                 </div>
               </div>

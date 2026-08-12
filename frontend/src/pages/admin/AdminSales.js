@@ -148,23 +148,23 @@ export default function AdminSales() {
     <div className="max-w-7xl mx-auto px-5 py-8">
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-white border border-stone-200 px-3 py-1 text-xs font-semibold text-stone-600">
+           <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 px-3 py-1 text-xs font-semibold text-stone-600 dark:text-stone-300">
             <TrendingUp size={13} /> Analytics
           </div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4">Sales Report</h1>
-          <p className="text-stone-500 text-sm mt-1">Revenue, channel performance, top sellers, and daily trends.</p>
+          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4 dark:text-stone-100">Sales Report</h1>
+          <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Revenue, channel performance, top sellers, and daily trends.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={setDaily} className="rounded-full bg-white">Daily</Button>
-            <Button variant="outline" size="sm" onClick={setMonthly} className="rounded-full bg-white">Monthly</Button>
-            <Button variant="outline" size="sm" onClick={setYearly} className="rounded-full bg-white">Yearly</Button>
+              <Button variant="outline" size="sm" onClick={setDaily} className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700">Daily</Button>
+            <Button variant="outline" size="sm" onClick={setMonthly} className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700">Monthly</Button>
+            <Button variant="outline" size="sm" onClick={setYearly} className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700">Yearly</Button>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="rounded-full bg-white" onClick={printReport}>
+            <Button variant="outline" className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700" onClick={printReport}>
               <Printer size={15} className="mr-2" /> Print
             </Button>
-            <Button variant="outline" className="rounded-full bg-white" onClick={load} disabled={refreshing}>
+            <Button variant="outline" className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700" onClick={load} disabled={refreshing}>
               <RefreshCcw size={15} className={refreshing ? "mr-2 animate-spin" : "mr-2"} />
               Refresh
             </Button>
@@ -181,28 +181,28 @@ export default function AdminSales() {
           ["Channels", Object.keys(report?.channels || {}).length],
           ["Top seller", topItems[0]?.name || "-"],
         ].map(([label, value]) => (
-          <div key={label} className="soft-panel p-4 border-l-4 border-l-orange-600">
-            <div className="text-2xl font-bold font-display">{value}</div>
-            <div className="text-xs text-stone-500 mt-1">{label}</div>
+          <div key={label} className="soft-panel p-4 border-l-4 border-l-primary">
+             <div className="text-2xl font-bold font-display dark:text-stone-200">{value}</div>
+             <div className="text-xs text-stone-500 dark:text-stone-400 mt-1">{label}</div>
           </div>
         ))}
       </div>
 
-      <div className="mt-6 soft-panel p-5 border-t-4 border-t-orange-600">
-        <h2 className="font-display text-xl font-semibold">Filters</h2>
+      <div className="mt-6 soft-panel p-5 border-t-4 border-t-primary">
+          <h2 className="font-display text-xl font-semibold dark:text-stone-100">Filters</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div>
-            <Label>From</Label>
-            <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="mt-1 rounded-xl" data-testid="sales-from" />
-          </div>
-          <div>
-            <Label>To</Label>
-            <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="mt-1 rounded-xl" data-testid="sales-to" />
-          </div>
-          <div>
-            <Label>Channel</Label>
-            <Select value={channel} onValueChange={setChannel}>
-              <SelectTrigger className="mt-1 rounded-xl" data-testid="sales-channel"><SelectValue /></SelectTrigger>
+           <div>
+             <Label className="text-stone-700 dark:text-stone-300">From</Label>
+             <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="mt-1 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="sales-from" />
+           </div>
+           <div>
+             <Label className="text-stone-700 dark:text-stone-300">To</Label>
+             <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="mt-1 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="sales-to" />
+           </div>
+           <div>
+             <Label className="text-stone-700 dark:text-stone-300">Channel</Label>
+             <Select value={channel} onValueChange={setChannel}>
+               <SelectTrigger className="mt-1 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="sales-channel"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All channels</SelectItem>
                 <SelectItem value="web">Online app</SelectItem>
@@ -216,8 +216,8 @@ export default function AdminSales() {
 
       <div className="mt-7 grid xl:grid-cols-2 gap-5">
         <section className="soft-panel p-5 border-t-4 border-t-emerald-600">
-          <h2 className="font-display text-xl font-semibold">Daily revenue</h2>
-          <p className="text-xs text-stone-500 mt-1">Revenue trend for the selected period.</p>
+          <h2 className="font-display text-xl font-semibold dark:text-stone-100">Daily revenue</h2>
+          <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">Revenue trend for the selected period.</p>
           <div className="mt-5 h-72">
             {dailyData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -229,14 +229,14 @@ export default function AdminSales() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-sm text-stone-500">No daily data available.</div>
+               <div className="h-full flex items-center justify-center text-sm text-stone-500 dark:text-stone-400">No daily data available.</div>
             )}
           </div>
         </section>
 
-        <section className="soft-panel p-5 border-t-4 border-t-orange-600">
-          <h2 className="font-display text-xl font-semibold">Channel breakdown</h2>
-          <p className="text-xs text-stone-500 mt-1">Orders and revenue by source.</p>
+        <section className="soft-panel p-5 border-t-4 border-t-primary">
+          <h2 className="font-display text-xl font-semibold dark:text-stone-100">Channel breakdown</h2>
+          <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">Orders and revenue by source.</p>
           <div className="mt-5 h-72">
             {channelData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -248,7 +248,7 @@ export default function AdminSales() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-sm text-stone-500">No channel data available.</div>
+               <div className="h-full flex items-center justify-center text-sm text-stone-500 dark:text-stone-400">No channel data available.</div>
             )}
           </div>
         </section>
@@ -256,8 +256,8 @@ export default function AdminSales() {
 
       <div className="mt-7 grid xl:grid-cols-2 gap-5">
         <section className="soft-panel p-5 border-t-4 border-t-amber-500">
-          <h2 className="font-display text-xl font-semibold">Status mix</h2>
-          <p className="text-xs text-stone-500 mt-1">Order status distribution for the selected period.</p>
+          <h2 className="font-display text-xl font-semibold dark:text-stone-100">Status mix</h2>
+          <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">Order status distribution for the selected period.</p>
           <div className="mt-5 h-72">
             {statusData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -269,27 +269,27 @@ export default function AdminSales() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-sm text-stone-500">No status data available.</div>
+               <div className="h-full flex items-center justify-center text-sm text-stone-500 dark:text-stone-400">No status data available.</div>
             )}
           </div>
         </section>
 
         <section className="soft-panel p-5 border-t-4 border-t-purple-500">
-          <h2 className="font-display text-xl font-semibold">Top selling items</h2>
-          <p className="text-xs text-stone-500 mt-1">Best performing dishes by quantity sold.</p>
+          <h2 className="font-display text-xl font-semibold dark:text-stone-100">Top selling items</h2>
+          <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">Best performing dishes by quantity sold.</p>
           <div className="mt-5 space-y-2">
             {topItems.length > 0 ? topItems.map((item, idx) => (
-              <div key={item.name} className="flex items-center justify-between rounded-lg border border-stone-200 bg-white p-3">
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-stone-900 text-white border-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px]">{idx + 1}</Badge>
-                  <div>
-                    <div className="text-sm font-semibold">{item.name}</div>
-                    <div className="text-xs text-stone-500">{item.qty} sold</div>
-                  </div>
-                </div>
-                <div className="text-sm font-semibold">{formatMoney(item.revenue, { noPaise: true })}</div>
-              </div>
-            )) : <div className="py-8 text-center text-sm text-stone-500">No sales data yet.</div>}
+               <div key={item.name} className="flex items-center justify-between rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-3">
+                 <div className="flex items-center gap-3">
+                   <Badge className="bg-stone-900 dark:bg-stone-700 text-white border-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px]">{idx + 1}</Badge>
+                   <div>
+                     <div className="text-sm font-semibold dark:text-stone-200">{item.name}</div>
+                     <div className="text-xs text-stone-500 dark:text-stone-400">{item.qty} sold</div>
+                   </div>
+                 </div>
+                 <div className="text-sm font-semibold dark:text-stone-200">{formatMoney(item.revenue, { noPaise: true })}</div>
+               </div>
+             )) : <div className="py-8 text-center text-sm text-stone-500 dark:text-stone-400">No sales data yet.</div>}
           </div>
         </section>
       </div>

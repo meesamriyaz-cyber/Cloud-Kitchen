@@ -19,17 +19,17 @@ export default function DishCard({ dish }) {
   };
 
   const spiceTone = dish.spice_level === "hot"
-    ? "text-red-700 bg-red-50"
+    ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20"
     : dish.spice_level === "mild"
-      ? "text-orange-700 bg-orange-50"
-      : "text-amber-700 bg-amber-50";
+      ? "text-primary dark:text-primary/80 bg-primary/10 dark:bg-primary/20"
+      : "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20";
 
   return (
-    <motion.div
+       <motion.div
       layout
       whileHover={{ y: unavailable ? 0 : -3 }}
       whileTap={{ scale: unavailable ? 1 : 0.985 }}
-      className={`dish-card group bg-white border border-stone-200/80 overflow-hidden flex flex-col ${unavailable ? "opacity-60" : ""}`}
+      className={`dish-card group bg-white dark:bg-stone-900 border border-stone-200/80 dark:border-stone-700 overflow-hidden flex flex-col ${unavailable ? "opacity-60" : ""}`}
       data-testid={`dish-card-${dish.id}`}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-stone-100">
@@ -50,7 +50,7 @@ export default function DishCard({ dish }) {
             {dish.veg ? "Veg" : "Non-veg"}
           </span>
           {unavailable ? (
-            <span className="rounded-full bg-orange-600 text-white text-[11px] font-semibold px-3 py-1 shadow-sm">
+            <span className="rounded-full bg-primary text-white text-[11px] font-semibold px-3 py-1 shadow-sm">
               Sold out
             </span>
           ) : (
@@ -64,14 +64,14 @@ export default function DishCard({ dish }) {
       <div className="p-4 flex-1 flex flex-col">
         <div className="flex-1">
           <h3 className="font-display font-semibold text-base tracking-tight leading-snug">{dish.name}</h3>
-          <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed">{dish.description}</p>
+          <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2 leading-relaxed">{dish.description}</p>
         </div>
         <div className="mt-4 flex items-center justify-between">
-          <div className="text-lg font-bold text-stone-900">{formatMoney(dish.price, { noPaise: true })}</div>
-          <button
+          <div className="text-lg font-bold text-stone-900 dark:text-stone-200">{formatMoney(dish.price, { noPaise: true })}</div>
+            <button
             onClick={handleAdd}
             disabled={unavailable}
-            className="rounded-full bg-orange-600 hover:bg-orange-700 disabled:bg-stone-300 disabled:cursor-not-allowed text-white px-4 h-9 text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
+            className="rounded-full bg-primary hover:opacity-95 disabled:bg-stone-300 disabled:cursor-not-allowed text-white px-4 h-9 text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
             data-testid={`add-to-cart-${dish.id}`}
           >
             <Plus size={14} /> {unavailable ? "Sold out" : "Add"}

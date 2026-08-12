@@ -71,31 +71,31 @@ export default function Menu() {
     <div className="max-w-7xl mx-auto px-5 pt-8 pb-24">
       <div className="grid lg:grid-cols-[1fr_360px] gap-5 items-stretch mb-6">
         <div className="soft-panel p-5 md:p-6">
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-800 px-3 py-1 text-xs font-semibold">
+          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 px-3 py-1 text-xs font-semibold">
             <Leaf size={13} /> Live menu
           </div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4">Order online from Mukhtar</h1>
-          <p className="text-stone-600 text-sm md:text-base mt-2 max-w-2xl">
+          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4 dark:text-stone-100">Order online from Mukhtar</h1>
+          <p className="text-stone-600 dark:text-stone-400 text-sm md:text-base mt-2 max-w-2xl">
             Filter by craving, spice, and dietary preference. Sold-out items stay visible so staff and customers share the same kitchen reality.
           </p>
         </div>
         <div className="soft-panel p-5 flex flex-col justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-stone-900 text-white flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
               <ShoppingBag size={18} />
             </div>
             <div>
               <div className="text-sm font-semibold">Cart summary</div>
-              <div className="text-xs text-stone-500">{count} item{count !== 1 && "s"} selected</div>
+              <div className="text-xs text-stone-500 dark:text-stone-400">{count} item{count !== 1 && "s"} selected</div>
             </div>
           </div>
           <div className="mt-5 flex items-end justify-between gap-4">
             <div>
-              <div className="text-xs uppercase text-stone-500">Payable</div>
-              <div className="font-display text-2xl font-bold">{formatMoney(total, { noPaise: true })}</div>
+              <div className="text-xs uppercase text-stone-500 dark:text-stone-400">Payable</div>
+              <div className="font-display text-2xl font-bold dark:text-stone-200">{formatMoney(total, { noPaise: true })}</div>
             </div>
             <Button
-              className="rounded-full bg-stone-900 hover:bg-stone-800"
+              className="rounded-full bg-primary hover:opacity-95"
               disabled={count === 0}
               onClick={() => setOpen(true)}
             >
@@ -113,12 +113,12 @@ export default function Menu() {
               placeholder="Search biryani, curry, tandoor..."
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className="pl-10 rounded-full h-11 bg-white border-stone-200"
+              className="pl-10 rounded-full h-11 bg-white dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200"
               data-testid="menu-search-input"
             />
           </div>
           <Select value={vegFilter} onValueChange={setVegFilter}>
-            <SelectTrigger className="rounded-full h-11 bg-white" data-testid="menu-diet-filter">
+            <SelectTrigger className="rounded-full h-11 bg-white dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="menu-diet-filter">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -128,7 +128,7 @@ export default function Menu() {
             </SelectContent>
           </Select>
           <Select value={spiceFilter} onValueChange={setSpiceFilter}>
-            <SelectTrigger className="rounded-full h-11 bg-white" data-testid="menu-spice-filter">
+            <SelectTrigger className="rounded-full h-11 bg-white dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="menu-spice-filter">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -139,7 +139,7 @@ export default function Menu() {
             </SelectContent>
           </Select>
           <Select value={sort} onValueChange={setSort}>
-            <SelectTrigger className="rounded-full h-11 bg-white" data-testid="menu-sort-select">
+            <SelectTrigger className="rounded-full h-11 bg-white dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="menu-sort-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -153,19 +153,17 @@ export default function Menu() {
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar mb-8 pb-2">
-        <button
-          onClick={() => setActiveCat("all")}
-          className={`shrink-0 px-4 h-10 rounded-full text-sm font-semibold transition-colors ${activeCat === "all" ? "bg-orange-600 text-white" : "bg-white border border-stone-200 text-stone-700 hover:bg-stone-100"}`}
-          data-testid="cat-filter-all"
-        >
-          All
-        </button>
-        {cats.map(c => (
+           <button
+             onClick={() => setActiveCat("all")}
+            className={`shrink-0 px-4 h-10 rounded-full text-sm font-semibold transition-colors ${activeCat === "all" ? "bg-primary text-white border-primary" : "bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700"}`}
+           >
+             All
+           </button>
+         {cats.map(c => (
           <button
             key={c.id}
             onClick={() => setActiveCat(c.id)}
-            className={`shrink-0 px-4 h-10 rounded-full text-sm font-semibold transition-colors ${activeCat === c.id ? "bg-orange-600 text-white" : "bg-white border border-stone-200 text-stone-700 hover:bg-stone-100"}`}
-            data-testid={`cat-filter-${c.id}`}
+             className={`shrink-0 px-4 h-10 rounded-full text-sm font-semibold transition-colors ${activeCat === c.id ? "bg-primary text-white border-primary" : "bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700"}`}
           >
             {c.name}
           </button>
@@ -174,10 +172,10 @@ export default function Menu() {
 
       <div className="flex items-center justify-between gap-4 mb-5">
         <div>
-          <div className="text-xs uppercase text-stone-500 inline-flex items-center gap-2">
+          <div className="text-xs uppercase text-stone-500 dark:text-stone-400 inline-flex items-center gap-2">
             <SlidersHorizontal size={13} /> {activeCatName}
           </div>
-          <h2 className="font-display text-2xl font-bold mt-1">{filtered.length} dishes ready to cook</h2>
+          <h2 className="font-display text-2xl font-bold mt-1 dark:text-stone-100">{filtered.length} dishes ready to cook</h2>
         </div>
       </div>
 
@@ -186,18 +184,18 @@ export default function Menu() {
       ) : loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="bg-white border border-stone-200 overflow-hidden animate-pulse">
-              <div className="aspect-[4/3] bg-stone-100" />
-              <div className="p-4 space-y-3">
-                <div className="h-4 bg-stone-100 rounded" />
-                <div className="h-3 bg-stone-100 rounded w-2/3" />
-                <div className="h-9 bg-stone-100 rounded-full" />
+             <div key={index} className="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 overflow-hidden animate-pulse">
+               <div className="aspect-[4/3] bg-stone-100 dark:bg-stone-700" />
+               <div className="p-4 space-y-3">
+                 <div className="h-4 bg-stone-100 dark:bg-stone-700 rounded" />
+                 <div className="h-3 bg-stone-100 dark:bg-stone-700 rounded w-2/3" />
+                 <div className="h-9 bg-stone-100 dark:bg-stone-700 rounded-full" />
               </div>
             </div>
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="soft-panel text-center py-16 text-stone-500">
+        <div className="soft-panel text-center py-16 text-stone-500 dark:text-stone-400">
           No dishes match those filters. Try another category or clear the search.
         </div>
       ) : (

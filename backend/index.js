@@ -38,9 +38,24 @@ const ORDER_STATUS_LABELS = {
 };
 const STAFF_ROLES = new Set(['admin', 'staff']);
 const KITCHEN_ROLES = new Set(['admin', 'staff', 'chef']);
+const FIRM = {
+  name: 'Mukhtar Cloud Kitchen',
+  tagline: 'Cooked fresh for every order',
+  address: 'Barzulla, Rambagh',
+  city: 'Srinagar',
+  state: 'J&K - 190005',
+  phone: '040-1234-5678',
+  email: 'orders@mukhtar.com',
+  gst: '29AAEFM1234E1Z5',
+  website: 'www.mukhtar.com',
+};
 
 function orderCustomer(order) {
   return order?.address?.full_name || order?.pos_customer_name || 'Walk-in';
+}
+
+function orderPhone(order) {
+  return order?.address?.phone || order?.pos_customer_phone || '';
 }
 
 if (!JWT_SECRET) {
@@ -151,6 +166,7 @@ const DishSchema = new mongoose.Schema({
   veg: { type: Boolean, default: true },
   spice_level: { type: String, default: 'medium' },
   is_available: { type: Boolean, default: true },
+  featured: { type: Boolean, default: false },
 }, { timestamps: true, versionKey: false });
 
 const CouponSchema = new mongoose.Schema({
@@ -326,6 +342,8 @@ app.get('/api/health', (_req, res) => res.json({
   database: mongoConnected ? 'connected' : 'disconnected',
 }));
 
+app.get('/api/firm', (_req, res) => res.json(FIRM));
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 app.post('/api/upload', adminOnly, upload.single('image'), async (req, res) => {
@@ -397,7 +415,21 @@ app.get('/api/dishes', async (req, res) => {
   if (req.query.q) q.name = { $regex: req.query.q, $options: 'i' };
   const dishes = await Dish.find(q).sort({ name: 1 }).lean();
   res.json(dishes.map(d => ({ id: d.id, name: d.name, description: d.description, price: d.price,
-    category_id: d.category_id, image_url: d.image_url, veg: d.veg, spice_level: d.spice_level, is_available: d.is_available })));
+    category_id: d.category_id, image_url: d.image_url, veg: d.veg, spice_level: d.spice_level, is_available: d.is_available, featured: d.featured })));
+});
+app.get('/api/dishes/featured', async (_req, res) => {
+  const dish = await Dish.findOne({ featured: true, is_available: true }).lean();
+  if (!dish) return res.json(null);
+  res.json({ id: dish.id, name: dish.name, description: dish.description, price: dish.price,
+    category_id: dish.category_id, image_url: dish.image_url, veg: dish.veg, spice_level: dish.spice_level, is_available: dish.is_available, featured: dish.featured });
+});
+app.post('/api/dishes/featured', adminOnly, async (req, res) => {
+  const { dish_id } = req.body || {};
+  if (!dish_id) return res.status(400).json({ detail: 'Missing dish_id' });
+  await Dish.updateOne({ id: dish_id }, { $set: { featured: true } });
+  await Dish.updateOne({ id: { $ne: dish_id } }, { $set: { featured: false } });
+  const dish = await Dish.findOne({ id: dish_id }).lean();
+  res.json(dish);
 });
 app.get('/api/dishes/:id', async (req, res) => {
   const d = await Dish.findOne({ id: req.params.id }).lean();
@@ -421,6 +453,10 @@ app.delete('/api/dishes/:id', adminOnly, async (req, res) => {
 app.get('/api/coupons', adminOnly, async (_req, res) => {
   const list = await Coupon.find({}).lean();
   res.json(list);
+});
+app.get('/api/coupons/active', async (_req, res) => {
+  const list = await Coupon.find({ active: true }).lean();
+  res.json(list.map(c => ({ code: c.code, discount_type: c.discount_type, value: c.value, min_order: c.min_order, max_discount: c.max_discount, active: c.active })));
 });
 app.post('/api/coupons', adminOnly, async (req, res) => {
   const { code, discount_type, value, min_order, max_discount, active } = req.body || {};
@@ -598,7 +634,8 @@ app.get('/api/orders/:oid/invoice', authRequired, async (req, res) => {
   if (o.user_id !== req.user.user_id && req.user.role !== 'admin' && req.user.role !== 'staff') {
     return res.status(403).json({ detail: 'Forbidden' });
   }
-  const customer = orderCustomer(o);
+   const customer = orderCustomer(o);
+  const phone = orderPhone(o);
   const items = o.items.map(i => ({
     name: i.name,
     qty: i.qty,
@@ -606,10 +643,12 @@ app.get('/api/orders/:oid/invoice', authRequired, async (req, res) => {
     total: roundMoney(i.price * i.qty),
   }));
   const invoice = {
+    firm: FIRM,
     id: o.id,
     order_no: o.order_no,
     created_at: o.created_at,
     customer,
+    phone,
     address: o.address,
     channel: o.channel,
     order_type: o.order_type,

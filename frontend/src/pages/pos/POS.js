@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatMoney, humanStatus, orderCustomer, shortOrderId } from "@/lib/format";
+import { printReceipt } from "@/lib/receipt";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -37,69 +38,13 @@ const paymentOptions = [
 ];
 
   const statusColors = {
-  placed: "bg-blue-100 text-blue-700",
-  preparing: "bg-amber-100 text-amber-700",
-  ready: "bg-orange-100 text-orange-700",
-  out_for_delivery: "bg-purple-100 text-purple-700",
-  delivered: "bg-green-100 text-green-700",
-  cancelled: "bg-red-100 text-red-700",
-};
-
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;",
-  }[char]));
-}
-
-function printReceipt(order) {
-  const receipt = window.open("", "mukhtar-receipt", "width=420,height=640");
-  if (!receipt) {
-    toast.error("Allow popups to print the receipt");
-    return;
-  }
-
-  const rows = order.items.map(item => `
-    <tr>
-      <td>${escapeHtml(item.name)} x ${item.qty}</td>
-      <td style="text-align:right">${formatMoney(item.price * item.qty)}</td>
-    </tr>
-  `).join("");
-
-  receipt.document.write(`
-    <html>
-      <head>
-        <title>Receipt ${escapeHtml(shortOrderId(order))}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 20px; color: #1c1917; }
-          h1 { font-size: 18px; margin: 0 0 4px; }
-          .muted { color: #78716c; font-size: 12px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
-          td { padding: 6px 0; border-bottom: 1px solid #e7e5e4; }
-          .total { font-weight: 700; font-size: 16px; }
-        </style>
-      </head>
-      <body>
-        <h1>Mukhtar Cloud Kitchen</h1>
-        <div class="muted">Order #${escapeHtml(shortOrderId(order))}</div>
-        <div class="muted">${escapeHtml(new Date(order.created_at).toLocaleString())}</div>
-        <div class="muted">Customer: ${escapeHtml(orderCustomer(order))}</div>
-        <table>
-          ${rows}
-          <tr><td>Subtotal</td><td style="text-align:right">${formatMoney(order.subtotal)}</td></tr>
-          <tr><td>Tax</td><td style="text-align:right">${formatMoney(order.tax)}</td></tr>
-          <tr class="total"><td>Total</td><td style="text-align:right">${formatMoney(order.total)}</td></tr>
-        </table>
-      </body>
-    </html>
-  `);
-  receipt.document.close();
-  receipt.focus();
-  receipt.print();
-}
+    placed: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
+    preparing: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300",
+    ready: "bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90",
+    out_for_delivery: "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300",
+    delivered: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300",
+    cancelled: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300",
+  };
 
 export default function POS() {
   const [dishes, setDishes] = useState([]);
@@ -219,9 +164,15 @@ export default function POS() {
     if (!lastOrder) return;
     try {
       const res = await axios.post(`${API}/pos/orders/${lastOrder.id}/pay`);
-      setLastOrder(res.data);
+      const paidOrder = res.data;
+      setLastOrder(paidOrder);
       setPaymentStep("completed");
       toast.success("Payment confirmed");
+      setTimeout(() => {
+        if (!printReceipt(paidOrder)) {
+          toast("Allow popups to print the receipt", { action: { label: "Retry", onClick: () => printReceipt(paidOrder) } });
+        }
+      }, 500);
     } catch (err) {
       toast.error(err.response?.data?.detail || "Payment failed");
     }
@@ -284,11 +235,11 @@ export default function POS() {
     <div className="max-w-[1600px] mx-auto px-5 py-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-white border border-stone-200 px-3 py-1 text-xs font-semibold text-stone-600">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 px-3 py-1 text-xs font-semibold text-stone-600 dark:text-stone-300">
             <ChefHat size={13} /> Staff terminal
           </div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4">Point of Sale</h1>
-          <p className="text-stone-500 text-sm mt-1">Create counter, pickup, dine-in, and staff-assisted delivery orders.</p>
+          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4 dark:text-stone-100">Point of Sale</h1>
+          <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Create counter, pickup, dine-in, and staff-assisted delivery orders.</p>
         </div>
         <div className="flex gap-2">
           {lastOrder && (
@@ -302,22 +253,22 @@ export default function POS() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-3 gap-3">
-        {[
-          { label: "Ticket", value: formatMoney(totals.total, { noPaise: true }), icon: ReceiptText },
-          { label: "Items", value: cartQty, icon: ShoppingBag },
-          { label: "Active POS", value: activeRecent, icon: Utensils },
-        ].map(metric => {
-          const Icon = metric.icon;
-          return (
-            <div key={metric.label} className="soft-panel p-4">
-              <Icon size={16} className="text-orange-700" />
-              <div className="font-display text-xl font-bold mt-2">{metric.value}</div>
-              <div className="text-xs text-stone-500">{metric.label}</div>
-            </div>
-          );
-        })}
-      </div>
+       <div className="mt-6 grid grid-cols-3 gap-3">
+         {[
+           { label: "Ticket", value: formatMoney(totals.total, { noPaise: true }), icon: ReceiptText },
+           { label: "Items", value: cartQty, icon: ShoppingBag },
+           { label: "Active POS", value: activeRecent, icon: Utensils },
+         ].map(metric => {
+           const Icon = metric.icon;
+           return (
+             <div key={metric.label} className="soft-panel p-4 dark:text-stone-200">
+               <Icon size={16} className="text-primary" />
+               <div className="font-display text-xl font-bold mt-2">{metric.value}</div>
+               <div className="text-xs text-stone-500 dark:text-stone-400">{metric.label}</div>
+             </div>
+           );
+         })}
+       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="space-y-4">
@@ -334,7 +285,7 @@ export default function POS() {
                 />
               </div>
               <Select value={activeCat} onValueChange={setActiveCat}>
-                <SelectTrigger className="md:w-64 h-11 rounded-full bg-stone-50" data-testid="pos-category-select">
+                <SelectTrigger className="md:w-64 h-11 rounded-full bg-stone-50 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="pos-category-select">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -346,7 +297,7 @@ export default function POS() {
             <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar">
               <button
                 onClick={() => setActiveCat("all")}
-                className={`shrink-0 h-9 px-3 rounded-full text-xs font-semibold border ${activeCat === "all" ? "bg-orange-600 text-white border-orange-600" : "bg-white text-stone-700 border-stone-200"}`}
+                className={`shrink-0 h-9 px-3 rounded-full text-xs font-semibold border ${activeCat === "all" ? "bg-primary text-white border-primary" : "bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 border-stone-200 dark:border-stone-700"}`}
               >
                 All
               </button>
@@ -354,7 +305,7 @@ export default function POS() {
                 <button
                   key={cat.id}
                   onClick={() => setActiveCat(cat.id)}
-                  className={`shrink-0 h-9 px-3 rounded-full text-xs font-semibold border ${activeCat === cat.id ? "bg-orange-600 text-white border-orange-600" : "bg-white text-stone-700 border-stone-200"}`}
+                  className={`shrink-0 h-9 px-3 rounded-full text-xs font-semibold border ${activeCat === cat.id ? "bg-primary text-white border-primary" : "bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 border-stone-200 dark:border-stone-700"}`}
                 >
                   {cat.name}
                 </button>
@@ -368,7 +319,7 @@ export default function POS() {
                 key={dish.id}
                 whileTap={{ scale: dish.is_available ? 0.985 : 1 }}
                 onClick={() => addDish(dish)}
-                className={`text-left bg-white border border-stone-200 overflow-hidden hover:border-emerald-700/40 transition-colors touch-card ${!dish.is_available ? "opacity-50" : ""}`}
+                 className={`text-left bg-white dark:bg-stone-800 border dark:border-stone-700 overflow-hidden hover:border-emerald-700/40 transition-colors touch-card ${!dish.is_available ? "opacity-50" : ""}`}
                 data-testid={`pos-dish-${dish.id}`}
               >
                 {dish.image_url && <img src={dish.image_url} alt={dish.name} className="w-full aspect-[4/3] object-cover bg-stone-100" />}
@@ -377,9 +328,9 @@ export default function POS() {
                     <span className={dish.veg ? "veg-dot mt-1" : "nonveg-dot mt-1"} title={dish.veg ? "Veg" : "Non-veg"} />
                     <div className="min-w-0 flex-1">
                       <div className="font-display font-semibold leading-snug">{dish.name}</div>
-                      <div className="text-xs text-stone-500 mt-1">{formatMoney(dish.price, { noPaise: true })}</div>
+                      <div className="text-xs text-stone-500 dark:text-stone-400 mt-1">{formatMoney(dish.price, { noPaise: true })}</div>
                     </div>
-                    <Plus size={16} className="text-orange-700 shrink-0" />
+                    <Plus size={16} className="text-primary shrink-0" />
                   </div>
                 </div>
               </motion.button>
@@ -391,14 +342,14 @@ export default function POS() {
           <div className="soft-panel p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-xl font-semibold">Current order</h2>
-              <Badge className="bg-stone-100 text-stone-700 border-0">{cartQty} items</Badge>
+              <Badge className="bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-0">{cartQty} items</Badge>
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3">
               <div>
-                <Label>Order type</Label>
+                <Label className="text-stone-700 dark:text-stone-300">Order type</Label>
                 <Select value={orderType} onValueChange={setOrderType}>
-                  <SelectTrigger className="mt-1 rounded-xl" data-testid="pos-order-type">
+                  <SelectTrigger className="mt-1 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="pos-order-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -409,9 +360,9 @@ export default function POS() {
                 </Select>
               </div>
               <div>
-                <Label>Payment</Label>
+                <Label className="text-stone-700 dark:text-stone-300">Payment</Label>
                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger className="mt-1 rounded-xl" data-testid="pos-payment-method">
+                  <SelectTrigger className="mt-1 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="pos-payment-method">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -429,61 +380,61 @@ export default function POS() {
             </div>
 
             {orderType === "dine_in" && (
-              <div className="mt-3">
-                <Label>Table number</Label>
-                <Input value={tableNo} onChange={(event) => setTableNo(event.target.value)} className="mt-1 rounded-xl" data-testid="pos-table-no" />
-              </div>
+               <div className="mt-3">
+                 <Label className="text-stone-700 dark:text-stone-300">Table number</Label>
+                 <Input value={tableNo} onChange={(event) => setTableNo(event.target.value)} className="mt-1 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="pos-table-no" />
+               </div>
             )}
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
-                <Label>Customer</Label>
-                <Input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Walk-in" className="mt-1 rounded-xl" data-testid="pos-customer-name" />
+                <Label className="text-stone-700 dark:text-stone-300">Customer</Label>
+                <Input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Walk-in" className="mt-1 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="pos-customer-name" />
               </div>
               <div>
-                <Label>Phone</Label>
-                <Input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="Optional" className="mt-1 rounded-xl" data-testid="pos-customer-phone" />
+                <Label className="text-stone-700 dark:text-stone-300">Phone</Label>
+                <Input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="Optional" className="mt-1 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="pos-customer-phone" />
               </div>
             </div>
 
             <div className="mt-5 max-h-[280px] overflow-y-auto space-y-2 pr-1">
               {cart.length === 0 ? (
-                <div className="py-12 text-center text-stone-500 bg-stone-50 rounded-lg border border-dashed border-stone-200">
-                  <ShoppingBag className="mx-auto text-stone-300" />
+                <div className="py-12 text-center text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-stone-800/40 rounded-lg border border-dashed border-stone-200 dark:border-stone-700">
+                  <ShoppingBag className="mx-auto text-stone-300 dark:text-stone-600" />
                   <div className="text-sm mt-2">Tap dishes to build an order.</div>
                 </div>
               ) : cart.map(item => (
-                <div key={item.dish_id} className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white p-3" data-testid={`pos-cart-item-${item.dish_id}`}>
-                  {item.image_url && <img src={item.image_url} alt={item.name} className="w-12 h-12 rounded-lg object-cover bg-stone-100" />}
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium text-sm truncate">{item.name}</div>
-                    <div className="text-xs text-stone-500">{formatMoney(item.price, { noPaise: true })}</div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button className="w-7 h-7 rounded-full bg-stone-100 inline-flex items-center justify-center" onClick={() => updateQty(item.dish_id, item.qty - 1)}>
-                      <Minus size={12} />
-                    </button>
-                    <span className="w-6 text-center text-sm font-medium">{item.qty}</span>
-                    <button className="w-7 h-7 rounded-full bg-stone-100 inline-flex items-center justify-center" onClick={() => updateQty(item.dish_id, item.qty + 1)}>
-                      <Plus size={12} />
-                    </button>
-                  </div>
-                </div>
+                <div key={item.dish_id} className="flex items-center gap-3 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/40 p-3" data-testid={`pos-cart-item-${item.dish_id}`}>
+                   {item.image_url && <img src={item.image_url} alt={item.name} className="w-12 h-12 rounded-lg object-cover bg-stone-100" />}
+                   <div className="min-w-0 flex-1">
+                     <div className="font-medium text-sm truncate dark:text-stone-200">{item.name}</div>
+                     <div className="text-xs text-stone-500 dark:text-stone-400">{formatMoney(item.price, { noPaise: true })}</div>
+                   </div>
+                   <div className="flex items-center gap-1">
+                     <button className="w-7 h-7 rounded-full bg-stone-100 dark:bg-stone-700 inline-flex items-center justify-center" onClick={() => updateQty(item.dish_id, item.qty - 1)}>
+                       <Minus size={12} />
+                     </button>
+                     <span className="w-6 text-center text-sm font-medium dark:text-stone-300">{item.qty}</span>
+                     <button className="w-7 h-7 rounded-full bg-stone-100 dark:bg-stone-700 inline-flex items-center justify-center" onClick={() => updateQty(item.dish_id, item.qty + 1)}>
+                       <Plus size={12} />
+                     </button>
+                   </div>
+                 </div>
               ))}
             </div>
 
-            <div className="mt-5 border-t border-stone-200 pt-4 space-y-2 text-sm">
-              <div className="flex justify-between text-stone-600"><span>Subtotal</span><span>{formatMoney(totals.subtotal)}</span></div>
-              {totals.deliveryFee > 0 && <div className="flex justify-between text-stone-600"><span>Delivery</span><span>{formatMoney(totals.deliveryFee)}</span></div>}
-              <div className="flex justify-between text-stone-600"><span>Tax</span><span>{formatMoney(totals.tax)}</span></div>
-              <div className="flex justify-between font-bold text-base pt-2 border-t border-stone-200"><span>Total</span><span>{formatMoney(totals.total)}</span></div>
+            <div className="mt-5 border-t border-stone-200 dark:border-stone-700 pt-4 space-y-2 text-sm">
+              <div className="flex justify-between text-stone-600 dark:text-stone-400"><span>Subtotal</span><span>{formatMoney(totals.subtotal)}</span></div>
+              {totals.deliveryFee > 0 && <div className="flex justify-between text-stone-600 dark:text-stone-400"><span>Delivery</span><span>{formatMoney(totals.deliveryFee)}</span></div>}
+              <div className="flex justify-between text-stone-600 dark:text-stone-400"><span>Tax</span><span>{formatMoney(totals.tax)}</span></div>
+              <div className="flex justify-between font-bold text-base pt-2 border-t border-stone-200 dark:border-stone-700"><span>Total</span><span>{formatMoney(totals.total)}</span></div>
             </div>
 
             <div className="mt-4 flex gap-2">
               <Button variant="outline" className="rounded-full px-3" disabled={!cart.length} onClick={() => setCart([])}>
                 <Trash2 size={16} />
               </Button>
-              <Button className="flex-1 rounded-full bg-orange-600 hover:bg-orange-700" disabled={placing || !cart.length} onClick={placeOrder} data-testid="pos-place-order">
+              <Button className="flex-1 rounded-full bg-primary hover:opacity-95" disabled={placing || !cart.length} onClick={placeOrder} data-testid="pos-place-order">
                 {placing ? "Creating..." : "Create order"}
               </Button>
             </div>
@@ -496,34 +447,34 @@ export default function POS() {
             </div>
             <div className="mt-4 space-y-2">
               {recent.slice(0, 6).map(order => (
-                <div key={order.id} className="rounded-xl border border-stone-200 p-3">
+                <div key={order.id} className="rounded-xl border border-stone-200 dark:border-stone-700 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="font-mono text-xs text-stone-500">#{shortOrderId(order)}</div>
-                      <div className="text-sm font-medium">{orderCustomer(order)}</div>
+                      <div className="font-mono text-xs text-stone-500 dark:text-stone-400">#{shortOrderId(order)}</div>
+                      <div className="text-sm font-medium dark:text-stone-200">{orderCustomer(order)}</div>
                     </div>
                     <div className="text-right">
                       <div className="font-semibold">{formatMoney(order.total, { noPaise: true })}</div>
-                      <Badge className={`${statusColors[order.status] || "bg-stone-100 text-stone-700"} border-0 capitalize text-[10px]`}>
+                      <Badge className={`${statusColors[order.status] || "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300"} border-0 capitalize text-[10px]`}>
                         {humanStatus(order.status)}
                       </Badge>
                     </div>
                   </div>
                 </div>
               ))}
-              {recent.length === 0 && <div className="text-sm text-stone-500 py-4">No POS orders yet.</div>}
+                {recent.length === 0 && <div className="text-sm text-stone-500 dark:text-stone-400 py-4">No POS orders yet.</div>}
             </div>
           </div>
         </aside>
       </div>
 
       {paymentStep && lastOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+           <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
             <div className="p-6">
               <div className="flex items-center justify-between">
                 <h3 className="font-display text-xl font-semibold">Collect Payment</h3>
-                <button onClick={() => { setPaymentStep(null); setLastOrder(null); }} className="p-1 hover:bg-stone-100 rounded-full">
+                   <button onClick={() => { setPaymentStep(null); setLastOrder(null); }} className="p-1 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-full">
                   <X size={20} />
                 </button>
               </div>
@@ -531,20 +482,20 @@ export default function POS() {
               {paymentStep === "pending" && (
                 <div className="mt-6 space-y-4">
                   <div className="soft-panel p-4">
-                    <div className="text-sm text-stone-500">Order #{shortOrderId(lastOrder)}</div>
+                    <div className="text-sm text-stone-500 dark:text-stone-400">Order #{shortOrderId(lastOrder)}</div>
                     <div className="text-2xl font-bold font-display mt-1">{formatMoney(lastOrder.total, { noPaise: true })}</div>
-                    <div className="text-xs text-stone-500 mt-1 capitalize">{paymentMethod} payment</div>
+                    <div className="text-xs text-stone-500 dark:text-stone-400 mt-1 capitalize">{paymentMethod} payment</div>
                   </div>
 
                   {paymentMethod === "cash" && (
-                    <div className="space-y-3">
+            <div className="mt-6 space-y-3">
                       <div>
-                        <Label>Cash received (₹)</Label>
+                        <Label className="text-stone-700 dark:text-stone-300">Cash received (₹)</Label>
                         <Input
                           type="number"
                           value={cashReceived}
                           onChange={(e) => setCashReceived(e.target.value)}
-                          className="mt-1 rounded-xl"
+                          className="mt-1 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200"
                           placeholder="Enter amount"
                           data-testid="cash-received-input"
                         />
@@ -572,19 +523,19 @@ export default function POS() {
                           <div className="w-48 h-48 mx-auto bg-stone-100 rounded-lg flex items-center justify-center border-2 border-dashed border-stone-300">
                             <div className="text-center">
                               <Smartphone size={48} className="mx-auto text-stone-400 mb-2" />
-                              <div className="text-xs text-stone-500">QR Code</div>
+                              <div className="text-xs text-stone-500 dark:text-stone-400">QR Code</div>
                             </div>
                           </div>
                         )}
                         <div>
-                          <div className="text-xs text-stone-500">UPI ID</div>
-                          <div className="font-mono text-sm font-semibold">mukhtar@okhdfcbank</div>
+                           <div className="text-xs text-stone-500 dark:text-stone-400">UPI ID</div>
+                          <div className="font-mono text-sm font-semibold dark:text-stone-200">mukhtar@okhdfcbank</div>
                         </div>
                         {upiDeepLink && (
                           <div className="text-left">
-                            <div className="text-xs text-stone-500 mb-1">Payment Link</div>
+                             <div className="text-xs text-stone-500 dark:text-stone-400 mb-1">Payment Link</div>
                             <div className="flex items-center gap-2">
-                              <code className="flex-1 text-xs bg-stone-100 p-2 rounded break-all">{upiDeepLink}</code>
+                              <code className="flex-1 text-xs bg-stone-100 dark:bg-stone-800 dark:text-stone-200 p-2 rounded break-all">{upiDeepLink}</code>
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -614,8 +565,8 @@ export default function POS() {
                     <div className="space-y-3">
                       <div className="soft-panel p-4 text-center space-y-3">
                         <CreditCard size={48} className="mx-auto text-stone-400" />
-                        <div className="text-sm text-stone-600">Card Payment</div>
-                        <div className="text-xs text-stone-500">Use Razorpay secure checkout</div>
+                        <div className="text-sm text-stone-600 dark:text-stone-300">Card Payment</div>
+                        <div className="text-xs text-stone-500 dark:text-stone-400">Use Razorpay secure checkout</div>
                       </div>
                       <Button variant="outline" className="w-full rounded-full" onClick={generatePaymentLink}>
                         <CreditCard size={16} className="mr-2" />
@@ -648,16 +599,19 @@ export default function POS() {
                   </div>
                   <div>
                     <div className="font-display text-xl font-semibold">Payment Successful</div>
-                    <div className="text-sm text-stone-500 mt-1">Order #{shortOrderId(lastOrder)} has been paid</div>
+                    <div className="text-sm text-stone-500 dark:text-stone-400 mt-1">Order #{shortOrderId(lastOrder)} has been paid</div>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                    <Button variant="outline" className="rounded-full" onClick={openInvoice}>
-                      <Printer size={16} className="mr-2" /> Open Invoice
-                    </Button>
-                    <Button variant="outline" className="rounded-full" onClick={() => { setPaymentStep(null); setLastOrder(null); }}>
-                      Done
-                    </Button>
-                  </div>
+                   <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                     <Button variant="outline" className="rounded-full" onClick={() => printReceipt(lastOrder)}>
+                       <Printer size={16} className="mr-2" /> Print Receipt
+                     </Button>
+                     <Button variant="outline" className="rounded-full" onClick={openInvoice}>
+                       Open Invoice
+                     </Button>
+                     <Button variant="outline" className="rounded-full" onClick={() => { setPaymentStep(null); setLastOrder(null); }}>
+                       Done
+                     </Button>
+                   </div>
                 </div>
               )}
             </div>

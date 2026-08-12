@@ -43,10 +43,10 @@ export default function AdminDashboard() {
   }, []);
 
   const tiles = [
-    { label: "Total Orders", value: stats.total_orders, icon: Package, tint: "bg-orange-50 text-orange-700" },
-    { label: "Revenue", value: formatMoney(stats.revenue, { noPaise: true }), icon: IndianRupee, tint: "bg-emerald-50 text-emerald-700" },
-    { label: "Active", value: stats.active, icon: Clock, tint: "bg-amber-50 text-amber-700" },
-    { label: "Delivered", value: stats.delivered, icon: CheckCircle2, tint: "bg-green-50 text-green-700" },
+    { label: "Total Orders", value: stats.total_orders, icon: Package, tint: "bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90" },
+    { label: "Revenue", value: formatMoney(stats.revenue, { noPaise: true }), icon: IndianRupee, tint: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300" },
+    { label: "Active", value: stats.active, icon: Clock, tint: "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300" },
+    { label: "Delivered", value: stats.delivered, icon: CheckCircle2, tint: "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300" },
   ];
 
   const channelData = useMemo(() => ([
@@ -68,33 +68,33 @@ export default function AdminDashboard() {
     .slice(0, 6), [orders]);
 
   const quickLinks = [
-    { to: "/admin/orders", title: "Live Orders", copy: "Filter by channel and move orders through kitchen status.", icon: ListOrdered, accent: "bg-orange-50 text-orange-700" },
-    { to: "/pos", title: "Open POS", copy: "Create walk-in, dine-in, pickup, and assisted delivery orders.", icon: MonitorCog, accent: "bg-emerald-50 text-emerald-700" },
-    { to: "/admin/menu", title: "Manage Menu", copy: "Add dishes, update prices, and control availability.", icon: Utensils, accent: "bg-amber-50 text-amber-700" },
-    { to: "/admin/users", title: "Users", copy: "Create and manage roles for staff and customers.", icon: Users, accent: "bg-blue-50 text-blue-700" },
-    { to: "/admin/sales", title: "Sales Report", copy: "Revenue trends, channel breakdown, and top sellers.", icon: TrendingUp, accent: "bg-purple-50 text-purple-700" },
-    { to: "/admin/offers", title: "Offers", copy: "Create and manage discount codes and promotions.", icon: Tag, accent: "bg-orange-50 text-orange-700" },
-    { to: "/chef", title: "Kitchen Display", copy: "Chef view for updating order status.", icon: ChefHat, accent: "bg-stone-100 text-stone-700" },
+    { to: "/admin/orders", title: "Live Orders", copy: "Filter by channel and move orders through kitchen status.", icon: ListOrdered, accent: "bg-primary/10 dark:bg-primary/20 text-primary" },
+    { to: "/pos", title: "Open POS", copy: "Create walk-in, dine-in, pickup, and assisted delivery orders.", icon: MonitorCog, accent: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300" },
+    { to: "/admin/menu", title: "Manage Menu", copy: "Add dishes, update prices, and control availability.", icon: Utensils, accent: "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300" },
+    { to: "/admin/users", title: "Users", copy: "Create and manage roles for staff and customers.", icon: Users, accent: "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300" },
+    { to: "/admin/sales", title: "Sales Report", copy: "Revenue trends, channel breakdown, and top sellers.", icon: TrendingUp, accent: "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300" },
+    { to: "/admin/offers", title: "Offers", copy: "Create and manage discount codes and promotions.", icon: Tag, accent: "bg-primary/10 dark:bg-primary/20 text-primary" },
+    { to: "/chef", title: "Kitchen Display", copy: "Chef view for updating order status.", icon: ChefHat, accent: "bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300" },
   ];
 
   return (
     <div className="max-w-7xl mx-auto px-5 py-8">
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-[#E76F51]/10 text-[#E76F51] px-3 py-1 text-xs font-semibold">
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold">
             <LayoutDashboard size={13} /> Admin control room
           </div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4">Kitchen Dashboard</h1>
-          <p className="text-stone-500 text-sm mt-1">Online ordering, POS, and kitchen throughput at a glance.</p>
+          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4 dark:text-stone-100">Kitchen Dashboard</h1>
+          <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Online ordering, POS, and kitchen throughput at a glance.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="rounded-full bg-white" onClick={() => window.print()} data-testid="admin-print-report">
+          <Button variant="outline" className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700" onClick={() => window.print()} data-testid="admin-print-report">
             <Printer size={15} className="mr-2" /> Print Report
           </Button>
-          <Link to="/admin/orders" className="rounded-full bg-white border border-stone-200 h-10 px-4 inline-flex items-center gap-2 text-sm font-semibold">
+          <Link to="/admin/orders" className="rounded-full bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 h-10 px-4 inline-flex items-center gap-2 text-sm font-semibold dark:text-stone-200">
             Orders <ArrowRight size={15} />
           </Link>
-          <Link to="/pos" className="rounded-full bg-orange-600 hover:bg-orange-700 text-white h-10 px-4 inline-flex items-center gap-2 text-sm font-semibold">
+          <Link to="/pos" className="rounded-full bg-primary hover:opacity-95 text-white h-10 px-4 inline-flex items-center gap-2 text-sm font-semibold">
             POS <MonitorCog size={15} />
           </Link>
         </div>
@@ -108,8 +108,8 @@ export default function AdminDashboard() {
               <div className={`w-10 h-10 rounded-full ${t.tint} flex items-center justify-center mb-4`}>
                 <Icon size={17} />
               </div>
-              <div className="text-2xl font-bold font-display">{t.value}</div>
-              <div className="text-xs text-stone-500 mt-1">{t.label}</div>
+              <div className="text-2xl font-bold font-display dark:text-stone-200">{t.value}</div>
+              <div className="text-xs text-stone-500 dark:text-stone-400 mt-1">{t.label}</div>
             </div>
           );
         })}
@@ -119,8 +119,8 @@ export default function AdminDashboard() {
         <section className="soft-panel p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="font-display text-xl font-semibold">Channel performance</h2>
-              <p className="text-xs text-stone-500 mt-1">Orders and paid/delivered revenue by source.</p>
+          <h2 className="font-display text-xl font-semibold dark:text-stone-100">Channel performance</h2>
+          <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">Orders and paid/delivered revenue by source.</p>
             </div>
           </div>
           <div className="mt-5 h-72">
@@ -137,31 +137,31 @@ export default function AdminDashboard() {
         </section>
 
         <section className="soft-panel p-5">
-          <h2 className="font-display text-xl font-semibold">Live kitchen queue</h2>
-          <p className="text-xs text-stone-500 mt-1">Newest active orders across web and POS.</p>
+          <h2 className="font-display text-xl font-semibold dark:text-stone-100">Live kitchen queue</h2>
+          <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">Newest active orders across web and POS.</p>
           <div className="mt-5 space-y-3">
             {liveQueue.map(order => (
-              <Link key={order.id} to={`/admin/orders`} className="block rounded-lg border border-stone-200 bg-white p-3 hover:border-emerald-700/30">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-mono text-xs text-stone-500">#{shortOrderId(order)}</div>
-                    <div className="font-semibold text-sm truncate">{orderCustomer(order)}</div>
-                    <div className="text-xs text-stone-500 truncate">{order.items?.map(item => `${item.qty}x ${item.name}`).join(", ")}</div>
+                <Link key={order.id} to={`/admin/orders`} className="block rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/40 p-3 hover:border-emerald-700/30">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-mono text-xs text-stone-500 dark:text-stone-400">#{shortOrderId(order)}</div>
+                      <div className="font-semibold text-sm dark:text-stone-200 truncate">{orderCustomer(order)}</div>
+                      <div className="text-xs text-stone-500 dark:text-stone-400 truncate">{order.items?.map(item => `${item.qty}x ${item.name}`).join(", ")}</div>
                   </div>
-                  <Badge className="border-0 capitalize bg-orange-600 text-white shrink-0">
+                  <Badge className="border-0 capitalize bg-primary text-white shrink-0">
                     {humanStatus(order.status)}
                   </Badge>
                 </div>
               </Link>
             ))}
-            {liveQueue.length === 0 && <div className="text-sm text-stone-500 py-8 text-center">No active orders in the queue.</div>}
+            {liveQueue.length === 0 && <div className="text-sm text-stone-500 dark:text-stone-400 py-8 text-center">No active orders in the queue.</div>}
           </div>
         </section>
       </div>
 
       <div className="mt-7 grid lg:grid-cols-[0.8fr_1.2fr] gap-5">
         <section className="soft-panel p-5">
-          <h2 className="font-display text-xl font-semibold">Status mix</h2>
+          <h2 className="font-display text-xl font-semibold dark:text-stone-100">Status mix</h2>
           <div className="mt-5 h-64">
             {statusData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -173,7 +173,7 @@ export default function AdminDashboard() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-sm text-stone-500">No order status data yet.</div>
+              <div className="h-full flex items-center justify-center text-sm text-stone-500 dark:text-stone-400">No order status data yet.</div>
             )}
           </div>
         </section>
@@ -185,14 +185,14 @@ export default function AdminDashboard() {
               <Link
                 key={link.to}
                 to={link.to}
-                className="soft-panel p-5 hover:border-[#E76F51]/40 transition-colors"
+                 className="soft-panel p-5 hover:border-primary/40 dark:hover:border-stone-600 transition-colors"
                 data-testid={`admin-goto-${link.title.toLowerCase().replace(/\s/g, '-')}`}
               >
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-4 ${link.accent}`}>
                   <Icon size={17} />
                 </div>
-                <div className="font-display text-lg font-semibold">{link.title}</div>
-                <div className="text-sm text-stone-500 mt-1">{link.copy}</div>
+                <div className="font-display text-lg font-semibold dark:text-stone-100">{link.title}</div>
+                <div className="text-sm text-stone-500 dark:text-stone-400 mt-1">{link.copy}</div>
               </Link>
             );
           })}

@@ -103,49 +103,49 @@ export default function AdminOffers() {
     <div className="max-w-7xl mx-auto px-5 py-8">
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-white border border-stone-200 px-3 py-1 text-xs font-semibold text-stone-600">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 px-3 py-1 text-xs font-semibold text-stone-600 dark:text-stone-300">
             <Tag size={13} /> Offers
           </div>
           <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4">Manage Offers</h1>
-          <p className="text-stone-500 text-sm mt-1">Create, update, and deactivate discount codes and promotions.</p>
+          <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Create, update, and deactivate discount codes and promotions.</p>
         </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openNew} className="rounded-full bg-stone-900 hover:bg-stone-800" data-testid="admin-add-offer-btn">
+            <Button onClick={openNew} className="rounded-full bg-primary hover:opacity-95" data-testid="admin-add-offer-btn">
               <Plus size={16} className="mr-1" /> Add Offer
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>{editing ? "Edit Offer" : "Add Offer"}</DialogTitle></DialogHeader>
             <div className="space-y-3">
-              <div><Label>Code</Label><Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. MUKHTAR20" data-testid="offer-form-code" /></div>
+              <div><Label className="text-stone-700 dark:text-stone-300">Code</Label><Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. MUKHTAR20" className="mt-1 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="offer-form-code" /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>Type</Label>
+                <div><Label className="text-stone-700 dark:text-stone-300">Type</Label>
                   <Select value={form.discount_type} onValueChange={v => setForm({ ...form, discount_type: v })}>
-                    <SelectTrigger data-testid="offer-form-type"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="mt-1 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="offer-form-type"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="percent">Percent</SelectItem>
                       <SelectItem value="fixed">Fixed amount</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Value</Label><Input type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} data-testid="offer-form-value" /></div>
+                <div><Label className="text-stone-700 dark:text-stone-300">Value</Label><Input type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} className="mt-1 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="offer-form-value" /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>Min order (₹)</Label><Input type="number" value={form.min_order || 0} onChange={e => setForm({ ...form, min_order: e.target.value })} data-testid="offer-form-min" /></div>
-                <div><Label>Max discount (₹)</Label><Input type="number" value={form.max_discount || 0} onChange={e => setForm({ ...form, max_discount: e.target.value })} data-testid="offer-form-max" /></div>
+                <div><Label className="text-stone-700 dark:text-stone-300">Min order (₹)</Label><Input type="number" value={form.min_order || 0} onChange={e => setForm({ ...form, min_order: e.target.value })} className="mt-1 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="offer-form-min" /></div>
+                <div><Label className="text-stone-700 dark:text-stone-300">Max discount (₹)</Label><Input type="number" value={form.max_discount || 0} onChange={e => setForm({ ...form, max_discount: e.target.value })} className="mt-1 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="offer-form-max" /></div>
               </div>
-              <div className="flex items-center justify-between rounded-lg border border-stone-200 p-3">
-                <div>
-                  <Label>Active</Label>
-                  <div className="text-xs text-stone-500 mt-1">Toggle to activate or deactivate this offer.</div>
+              <div className="flex items-center justify-between rounded-lg border border-stone-200 dark:border-stone-700 p-3">
+                  <div>
+                    <Label className="text-stone-700 dark:text-stone-300">Active</Label>
+                    <div className="text-xs text-stone-500 dark:text-stone-400 mt-1">Toggle to activate or deactivate this offer.</div>
                 </div>
-                <button onClick={() => setForm({ ...form, active: !form.active })} data-testid="offer-form-active" className={`w-12 h-6 rounded-full transition-colors ${form.active ? "bg-orange-600" : "bg-stone-300"}`}>
+                <button onClick={() => setForm({ ...form, active: !form.active })} data-testid="offer-form-active" className={`w-12 h-6 rounded-full transition-colors ${form.active ? "bg-primary" : "bg-stone-300 dark:bg-stone-600"}`}>
                   <div className={`w-5 h-5 rounded-full bg-white shadow-sm mt-0.5 transition-transform ${form.active ? "translate-x-6" : "translate-x-0.5"}`} />
                 </button>
               </div>
-              <Button onClick={save} className="w-full rounded-full bg-stone-900 hover:bg-stone-800" data-testid="offer-form-save">Save</Button>
+              <Button onClick={save} className="w-full rounded-full bg-primary hover:opacity-95" data-testid="offer-form-save">Save</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -155,7 +155,7 @@ export default function AdminOffers() {
 
       <div className="mt-6 soft-panel overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">
-          <thead className="bg-stone-50 text-stone-500 text-xs uppercase">
+          <thead className="bg-stone-50 dark:bg-stone-800/60 text-stone-500 dark:text-stone-400 text-xs uppercase">
             <tr>
               <th className="text-left px-5 py-3">Code</th>
               <th className="text-left px-5 py-3">Type</th>
@@ -168,25 +168,25 @@ export default function AdminOffers() {
           </thead>
           <tbody>
             {filtered.map(c => (
-              <tr key={c.code} className="border-t border-stone-100 hover:bg-stone-50/60" data-testid={`offer-row-${c.code}`}>
-                <td className="px-5 py-3 font-mono text-sm font-semibold">{c.code}</td>
-                <td className="px-5 py-3 capitalize">{c.discount_type}</td>
-                <td className="px-5 py-3 font-semibold">{c.discount_type === "percent" ? `${c.value}%` : formatMoney(c.value, { noPaise: true })}</td>
-                <td className="px-5 py-3">{c.min_order > 0 ? formatMoney(c.min_order, { noPaise: true }) : "Any"}</td>
-                <td className="px-5 py-3">{c.redemptions || 0}</td>
+              <tr key={c.code} className="border-t border-stone-100 dark:border-stone-700 hover:bg-stone-50/60 dark:hover:bg-stone-800/40" data-testid={`offer-row-${c.code}`}>
+                <td className="px-5 py-3 font-mono text-sm font-semibold dark:text-stone-200">{c.code}</td>
+                <td className="px-5 py-3 capitalize dark:text-stone-300">{c.discount_type}</td>
+                <td className="px-5 py-3 font-semibold dark:text-stone-200">{c.discount_type === "percent" ? `${c.value}%` : formatMoney(c.value, { noPaise: true })}</td>
+                <td className="px-5 py-3 dark:text-stone-300">{c.min_order > 0 ? formatMoney(c.min_order, { noPaise: true }) : "Any"}</td>
+                <td className="px-5 py-3 dark:text-stone-300">{c.redemptions || 0}</td>
                 <td className="px-5 py-3">
-                  <Badge className={`${c.active ? "bg-green-100 text-green-700" : "bg-stone-100 text-stone-500"} border-0 capitalize`}>{c.active ? "Active" : "Inactive"}</Badge>
+                  <Badge className={`${c.active ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : "bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400"} border-0 capitalize`}>{c.active ? "Active" : "Inactive"}</Badge>
                 </td>
                 <td className="px-5 py-3 text-right">
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(c)} className="rounded-full" data-testid={`edit-offer-${c.code}`}><Edit size={14} /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => toggleActive(c)} className="rounded-full" data-testid={`toggle-offer-${c.code}`}>{c.active ? "Deactivate" : "Activate"}</Button>
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(c)} className="rounded-full text-stone-600 dark:text-stone-300" data-testid={`edit-offer-${c.code}`}><Edit size={14} /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => toggleActive(c)} className="rounded-full text-stone-600 dark:text-stone-300" data-testid={`toggle-offer-${c.code}`}>{c.active ? "Deactivate" : "Activate"}</Button>
                   <Button variant="ghost" size="sm" onClick={() => del(c.code)} className="rounded-full text-red-600" data-testid={`del-offer-${c.code}`}><Trash2 size={14} /></Button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && <div className="py-12 text-center text-stone-500">No offers match this filter.</div>}
+        {filtered.length === 0 && <div className="py-12 text-center text-stone-500 dark:text-stone-400">No offers match this filter.</div>}
       </div>
     </div>
   );

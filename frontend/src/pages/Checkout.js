@@ -52,7 +52,7 @@ export default function Checkout() {
     return (
       <div className="max-w-3xl mx-auto px-5 py-16 text-center">
         <h2 className="font-display text-2xl font-bold">Your cart is empty</h2>
-        <Button className="mt-4 rounded-full bg-orange-600 hover:bg-orange-700" onClick={() => navigate("/menu")}>Browse Menu</Button>
+        <Button className="mt-4 rounded-full bg-primary hover:opacity-95" onClick={() => navigate("/menu")}>Browse Menu</Button>
       </div>
     );
   }
@@ -143,46 +143,46 @@ export default function Checkout() {
     <div className="max-w-6xl mx-auto px-5 py-8 grid md:grid-cols-3 gap-6">
       <form onSubmit={submit} className="md:col-span-2 space-y-8">
         <div className="soft-panel p-5">
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-800 px-3 py-1 text-xs font-semibold">
+          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 px-3 py-1 text-xs font-semibold">
             <ShieldCheck size={13} /> Secure checkout
           </div>
           <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4">Checkout</h1>
-          <p className="text-stone-600 text-sm mt-1">Confirm delivery details, apply offers, and choose how you want to pay.</p>
+          <p className="text-stone-600 dark:text-stone-400 text-sm mt-1">Confirm delivery details, apply offers, and choose how you want to pay.</p>
         </div>
 
         <section className="soft-panel p-6 space-y-4">
-          <h2 className="font-display text-lg font-semibold flex items-center gap-2"><MapPin size={18} /> Delivery details</h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div><Label>Full name</Label><Input required value={addr.full_name} onChange={e => setAddr({...addr, full_name: e.target.value})} className="mt-1 h-11 rounded-xl" data-testid="checkout-name" /></div>
-            <div><Label>Phone</Label><Input required value={addr.phone} onChange={e => setAddr({...addr, phone: e.target.value})} className="mt-1 h-11 rounded-xl" data-testid="checkout-phone" /></div>
-          </div>
-          <div><Label>Address</Label><Input required value={addr.line1} onChange={e => setAddr({...addr, line1: e.target.value})} className="mt-1 h-11 rounded-xl" data-testid="checkout-line1" /></div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div><Label>City</Label><Input required value={addr.city} onChange={e => setAddr({...addr, city: e.target.value})} className="mt-1 h-11 rounded-xl" data-testid="checkout-city" /></div>
-            <div><Label>Pincode</Label><Input required value={addr.pincode} onChange={e => setAddr({...addr, pincode: e.target.value})} className="mt-1 h-11 rounded-xl" data-testid="checkout-pincode" /></div>
-          </div>
-          <div><Label>Delivery notes (optional)</Label><Textarea value={addr.notes} onChange={e => setAddr({...addr, notes: e.target.value})} className="mt-1 rounded-xl" data-testid="checkout-notes" /></div>
+           <h2 className="font-display text-lg font-semibold dark:text-stone-100 flex items-center gap-2"><MapPin size={18} /> Delivery details</h2>
+           <div className="grid sm:grid-cols-2 gap-4">
+             <div><Label className="text-stone-700 dark:text-stone-300">Full name</Label><Input required value={addr.full_name} onChange={e => setAddr({...addr, full_name: e.target.value})} className="mt-1 h-11 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="checkout-name" /></div>
+             <div><Label className="text-stone-700 dark:text-stone-300">Phone</Label><Input required value={addr.phone} onChange={e => setAddr({...addr, phone: e.target.value})} className="mt-1 h-11 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="checkout-phone" /></div>
+           </div>
+           <div><Label className="text-stone-700 dark:text-stone-300">Address</Label><Input required value={addr.line1} onChange={e => setAddr({...addr, line1: e.target.value})} className="mt-1 h-11 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="checkout-line1" /></div>
+           <div className="grid sm:grid-cols-2 gap-4">
+             <div><Label className="text-stone-700 dark:text-stone-300">City</Label><Input required value={addr.city} onChange={e => setAddr({...addr, city: e.target.value})} className="mt-1 h-11 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="checkout-city" /></div>
+             <div><Label className="text-stone-700 dark:text-stone-300">Pincode</Label><Input required value={addr.pincode} onChange={e => setAddr({...addr, pincode: e.target.value})} className="mt-1 h-11 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="checkout-pincode" /></div>
+           </div>
+           <div><Label className="text-stone-700 dark:text-stone-300">Delivery notes (optional)</Label><Textarea value={addr.notes} onChange={e => setAddr({...addr, notes: e.target.value})} className="mt-1 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="checkout-notes" /></div>
         </section>
 
         <section className="soft-panel p-6 space-y-4">
-          <h2 className="font-display text-lg font-semibold">Coupon</h2>
+          <h2 className="font-display text-lg font-semibold dark:text-stone-100">Coupon</h2>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <TicketPercent size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
-              <Input
-                value={couponCode}
-                onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                placeholder="Coupon code"
-                className="pl-10 h-11 rounded-xl"
-                data-testid="checkout-coupon"
-              />
+             <Input
+                 value={couponCode}
+                 onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                 placeholder="Coupon code"
+                 className="pl-10 h-11 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100"
+                 data-testid="checkout-coupon"
+               />
             </div>
             <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={applyCoupon} disabled={couponBusy}>
               Apply
             </Button>
           </div>
           {appliedCoupon && (
-            <div className="flex items-center justify-between rounded-xl bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-700">
+            <div className="flex items-center justify-between rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 px-4 py-3 text-sm text-green-700 dark:text-green-300">
               <span>{appliedCoupon.code} saved {formatMoney(appliedCoupon.discount)}</span>
               <button type="button" onClick={() => { setAppliedCoupon(null); setCouponCode(""); }} className="p-1">
                 <X size={14} />
@@ -194,20 +194,20 @@ export default function Checkout() {
         <section className="soft-panel p-6 space-y-4">
           <h2 className="font-display text-lg font-semibold flex items-center gap-2"><CreditCard size={18} /> Payment</h2>
           <RadioGroup value={method} onValueChange={setMethod} className="space-y-2">
-            <label className="flex items-center gap-3 p-4 rounded-xl border border-stone-200 has-[:checked]:border-orange-600 has-[:checked]:bg-orange-50/40 cursor-pointer">
+            <label className="flex items-center gap-3 p-4 rounded-xl border border-stone-200 dark:border-stone-700 has-[:checked]:border-primary has-[:checked]:bg-primary/10 cursor-pointer">
               <RadioGroupItem value="cod" id="cod" data-testid="payment-cod" />
-              <Wallet size={18} className="text-stone-500" />
+              <Wallet size={18} className="text-stone-500 dark:text-stone-400" />
               <div className="flex-1">
                 <div className="font-medium text-sm">Cash on Delivery</div>
-                <div className="text-xs text-stone-500">Pay when your food arrives.</div>
+                <div className="text-xs text-stone-500 dark:text-stone-400">Pay when your food arrives.</div>
               </div>
             </label>
-            <label className="flex items-center gap-3 p-4 rounded-xl border border-stone-200 has-[:checked]:border-orange-600 has-[:checked]:bg-orange-50/40 cursor-pointer">
+            <label className="flex items-center gap-3 p-4 rounded-xl border border-stone-200 dark:border-stone-700 has-[:checked]:border-primary has-[:checked]:bg-primary/10 cursor-pointer">
               <RadioGroupItem value="razorpay" id="rzp" data-testid="payment-razorpay" />
-              <CreditCard size={18} className="text-stone-500" />
+              <CreditCard size={18} className="text-stone-500 dark:text-stone-400" />
               <div className="flex-1">
                 <div className="font-medium text-sm">Pay Online (Razorpay)</div>
-                <div className="text-xs text-stone-500">UPI, Cards, NetBanking & Wallets.</div>
+                <div className="text-xs text-stone-500 dark:text-stone-400">UPI, Cards, NetBanking & Wallets.</div>
               </div>
             </label>
           </RadioGroup>
@@ -217,33 +217,33 @@ export default function Checkout() {
       <aside className="md:col-span-1">
         <div className="sticky top-24 soft-panel p-6">
           <h2 className="font-display text-lg font-semibold mb-4">Order summary</h2>
-          <div className="mb-4 rounded-lg border border-orange-100 bg-orange-50 px-3 py-2 text-xs text-orange-800 flex items-center gap-2">
+          <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 dark:bg-primary/10 px-3 py-2 text-xs text-stone-700 dark:text-stone-300 flex items-center gap-2">
             <Bike size={15} />
             {deliveryFee === 0 ? "Free delivery applied" : `${formatMoney(deliveryFee)} delivery fee`}
           </div>
-          <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-            {items.map(i => (
-              <div key={i.dish_id} className="flex items-center gap-3 text-sm">
-                {i.image_url && <img src={i.image_url} alt="" className="w-10 h-10 rounded-lg object-cover" />}
-                <div className="flex-1 min-w-0">
-                  <div className="truncate">{i.name}</div>
-                  <div className="text-xs text-stone-500">x {i.qty}</div>
+            <div className="mt-4 space-y-3 max-h-64 overflow-y-auto pr-1">
+              {items.map(i => (
+                <div key={i.dish_id} className="flex items-center gap-3 text-sm">
+                  {i.image_url && <img src={i.image_url} alt="" className="w-10 h-10 rounded-lg object-cover" />}
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate dark:text-stone-200">{i.name}</div>
+                    <div className="text-xs text-stone-500 dark:text-stone-400">x {i.qty}</div>
+                  </div>
+                  <div className="font-medium dark:text-stone-200">{formatMoney(i.price * i.qty, { noPaise: true })}</div>
                 </div>
-                <div className="font-medium">{formatMoney(i.price * i.qty, { noPaise: true })}</div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 pt-4 border-t border-stone-200 space-y-2 text-sm">
-            <div className="flex justify-between text-stone-600"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
-            {discount > 0 && <div className="flex justify-between text-green-700"><span>Discount</span><span>-{formatMoney(discount)}</span></div>}
-            <div className="flex justify-between text-stone-600"><span>Delivery</span><span>{deliveryFee === 0 ? "Free" : formatMoney(deliveryFee)}</span></div>
-            <div className="flex justify-between text-stone-600"><span>Tax</span><span>{formatMoney(payableTax)}</span></div>
-            <div className="flex justify-between font-bold text-base pt-2 border-t border-stone-200">
-              <span>Total</span><span data-testid="checkout-total">{formatMoney(payableTotal)}</span>
+              ))}
             </div>
-          </div>
+            <div className="mt-5 pt-4 border-t border-stone-200 dark:border-stone-700 space-y-2 text-sm">
+              <div className="flex justify-between text-stone-600 dark:text-stone-400"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
+              {discount > 0 && <div className="flex justify-between text-green-700"><span>Discount</span><span>-{formatMoney(discount)}</span></div>}
+              <div className="flex justify-between text-stone-600 dark:text-stone-400"><span>Delivery</span><span>{deliveryFee === 0 ? "Free" : formatMoney(deliveryFee)}</span></div>
+              <div className="flex justify-between text-stone-600 dark:text-stone-400"><span>Tax</span><span>{formatMoney(payableTax)}</span></div>
+              <div className="flex justify-between font-bold text-base pt-2 border-t border-stone-200 dark:border-stone-700">
+                <span>Total</span><span data-testid="checkout-total">{formatMoney(payableTotal)}</span>
+              </div>
+            </div>
           <Button onClick={submit} disabled={placing}
-            className="w-full mt-5 h-11 rounded-full bg-orange-600 hover:bg-orange-700" data-testid="place-order-btn">
+            className="w-full mt-5 h-11 rounded-full bg-primary hover:opacity-95" data-testid="place-order-btn">
             {placing ? "Placing..." : `Place order - ${formatMoney(payableTotal)}`}
           </Button>
         </div>

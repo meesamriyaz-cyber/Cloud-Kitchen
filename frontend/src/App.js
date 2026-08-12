@@ -1,5 +1,4 @@
 import React from "react";
-import "@/App.css";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
@@ -13,6 +12,7 @@ import OrderTracking from "@/pages/OrderTracking";
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentFailure from "@/pages/PaymentFailure";
 import Invoice from "@/pages/Invoice";
+import ReceiptPrint from "@/pages/ReceiptPrint";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
@@ -27,7 +27,7 @@ import Layout from "@/components/Layout";
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-4 border-stone-200 dark:border-stone-700 border-t-primary"></div></div>;
   if (!user) return <Navigate to="/login" replace />;
   if (roles?.length && !roles.includes(user.role)) return <Navigate to="/" replace />;
   return children;
@@ -45,6 +45,7 @@ function AppRouter() {
         <Route path="/payment/success" element={<ProtectedRoute><PaymentSuccess /></ProtectedRoute>} />
         <Route path="/payment/failure" element={<ProtectedRoute><PaymentFailure /></ProtectedRoute>} />
         <Route path="/orders/:oid/invoice" element={<ProtectedRoute><Invoice /></ProtectedRoute>} />
+        <Route path="/orders/:oid/receipt" element={<ProtectedRoute><ReceiptPrint /></ProtectedRoute>} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/admin" element={<ProtectedRoute roles={["admin", "staff"]}><AdminDashboard /></ProtectedRoute>} />
@@ -63,12 +64,12 @@ function AppRouter() {
 
 function App() {
   return (
-    <div className="App">
+    <div className="App page-wrapper">
       <AuthProvider>
         <CartProvider>
           <BrowserRouter>
             <AppRouter />
-            <Toaster position="top-center" richColors />
+            <Toaster position="top-center" richColors closeButton />
           </BrowserRouter>
         </CartProvider>
       </AuthProvider>
