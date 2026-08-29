@@ -1,4 +1,4 @@
-# Mukhtar Cloud Kitchen — Pure MERN App
+# Cloud Kitchen — Pure MERN App
 
 A 100% pure MERN (MongoDB, Express, React, Node.js) cloud kitchen ordering app.
 
@@ -35,11 +35,6 @@ A 100% pure MERN (MongoDB, Express, React, Node.js) cloud kitchen ordering app.
    curl -X POST http://localhost:8002/api/seed
    ```
 
-   Seeded accounts:
-   - Admin: `admin@mukhtar.com` / `Admin@123`
-   - Salesman/POS: `salesman@mukhtar.com` / `Salesman@123`
-   - Customer: `customer@mukhtar.com` / `Customer@123`
-
 ## MongoDB Notes
 
 - The backend is configured to use a MongoDB Atlas cluster by default via `MUKHTAR_KITCHEN__MONGO_URI` in `backend/.env`.
@@ -49,13 +44,13 @@ A 100% pure MERN (MongoDB, Express, React, Node.js) cloud kitchen ordering app.
 ## Run from VSCode
 
 1. Open the project in VSCode
-2. Press `Ctrl+Shift+B` and select **"Start Mukhtar Kitchen (Dev)"**
+2. Press `Ctrl+Shift+B` and select **"Start Cloud Kitchen (Dev)"**
 3. Or open the **Run and Debug** panel and select **"Debug Fullstack"**
 
 ## Project Structure
 
 ```
-mukhtar-kitchen/
+cloud-kitchen/
   backend/          # Express + MongoDB API (ES Modules)
     index.js        # Main server file
     package.json    # Backend dependencies
