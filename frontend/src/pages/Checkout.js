@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
+import { useFirm } from "@/context/FirmContext";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ function loadRazorpay() {
 export default function Checkout() {
   const { items, subtotal, deliveryFee, clear } = useCart();
   const { user } = useAuth();
+  const { firm } = useFirm();
   const navigate = useNavigate();
 
   const [addr, setAddr] = useState({
@@ -106,10 +108,10 @@ export default function Checkout() {
           amount: order.data.amount,
           currency: order.data.currency,
           order_id: order.data.id,
-          name: "Mukhtar Cloud Kitchen",
+          name: firm.name,
           description: "Food order",
           prefill: { name: addr.full_name, email: user?.email, contact: addr.phone },
-          theme: { color: "#C2410C" },
+          theme: { color: firm.theme_color || "#C2410C" },
           handler: async (resp) => {
             try {
               const placed = await placeOrder({

@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useFirm } from "@/context/FirmContext";
 import { formatMoney, humanStatus, orderCustomer, shortOrderId } from "@/lib/format";
 import { printReceipt } from "@/lib/receipt";
 
@@ -47,6 +48,7 @@ const paymentOptions = [
   };
 
 export default function POS() {
+  const { firm } = useFirm();
   const [dishes, setDishes] = useState([]);
   const [cats, setCats] = useState([]);
   const [recent, setRecent] = useState([]);
@@ -101,6 +103,7 @@ export default function POS() {
 
   const cartQty = useMemo(() => cart.reduce((sum, item) => sum + item.qty, 0), [cart]);
   const activeRecent = useMemo(() => recent.filter(order => ["placed", "preparing", "ready"].includes(order.status)).length, [recent]);
+  const configuredUpiId = firm.upi_id || "";
 
   const addDish = (dish) => {
     if (!dish.is_available) {
@@ -197,8 +200,12 @@ export default function POS() {
 
   const generateUpiDeepLink = async () => {
     if (!lastOrder) return;
+    if (!configuredUpiId) {
+      toast.error("Add a UPI ID in restaurant settings first");
+      return;
+    }
     try {
-      const res = await axios.post(`${API}/pos/orders/${lastOrder.id}/upi-deep-link`, { upi_id: "mukhtar@okhdfcbank" });
+      const res = await axios.post(`${API}/pos/orders/${lastOrder.id}/upi-deep-link`, { upi_id: configuredUpiId });
       setUpiDeepLink(res.data.upi_url);
       setUpiQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(res.data.upi_url)}`);
       setUpiCopied(false);
@@ -529,7 +536,7 @@ export default function POS() {
                         )}
                         <div>
                            <div className="text-xs text-stone-500 dark:text-stone-400">UPI ID</div>
-                          <div className="font-mono text-sm font-semibold dark:text-stone-200">mukhtar@okhdfcbank</div>
+                          <div className="font-mono text-sm font-semibold dark:text-stone-200">{configuredUpiId || "Not configured"}</div>
                         </div>
                         {upiDeepLink && (
                           <div className="text-left">
@@ -548,7 +555,7 @@ export default function POS() {
                           </div>
                         )}
                       </div>
-                      <Button variant="outline" className="w-full rounded-full" onClick={generateUpiDeepLink}>
+                      <Button variant="outline" className="w-full rounded-full" onClick={generateUpiDeepLink} disabled={!configuredUpiId}>
                         <Smartphone size={16} className="mr-2" />
                         Generate UPI Link
                       </Button>

@@ -28,7 +28,7 @@ export default function ReceiptPrint() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("mck_token");
+    const token = localStorage.getItem("restaurant_app_token");
     if (token) axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
     axios
@@ -61,7 +61,7 @@ export default function ReceiptPrint() {
   const openPopUp = () => {
     if (!invoice) return;
     const html = generateReceiptHTML(invoice);
-    const popup = window.open("", "mukhtar-receipt-print", "width=420,height=720,scrollbars=yes");
+    const popup = window.open("", "restaurant-receipt-print", "width=420,height=720,scrollbars=yes");
     if (!popup) return;
     popup.document.write(html);
     popup.document.close();

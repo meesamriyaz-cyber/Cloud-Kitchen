@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ApiUnavailable from "@/components/ApiUnavailable";
 import { useCart } from "@/context/CartContext";
+import { useFirm } from "@/context/FirmContext";
 import { formatMoney } from "@/lib/format";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -26,6 +27,7 @@ export default function Menu() {
   const initialCat = new URLSearchParams(loc.search).get("cat") || "all";
   const [activeCat, setActiveCat] = useState(initialCat);
   const { count, total, setOpen } = useCart();
+  const { firm } = useFirm();
 
   const loadMenu = useCallback(async () => {
     setError("");
@@ -74,7 +76,7 @@ export default function Menu() {
           <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 px-3 py-1 text-xs font-semibold">
             <Leaf size={13} /> Live menu
           </div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4 dark:text-stone-100">Order online from Mukhtar</h1>
+          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4 dark:text-stone-100">Order online from {firm.name}</h1>
           <p className="text-stone-600 dark:text-stone-400 text-sm md:text-base mt-2 max-w-2xl">
             Filter by craving, spice, and dietary preference. Sold-out items stay visible so staff and customers share the same kitchen reality.
           </p>

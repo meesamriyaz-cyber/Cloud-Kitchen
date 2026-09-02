@@ -5,8 +5,10 @@ import { motion } from "framer-motion";
 import { ArrowRight, Bike, ChefHat, Clock, Flame, Leaf, Beef, ShieldCheck, Star, Utensils, Tag, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { useFirm } from "@/context/FirmContext";
 import DishCard from "@/components/DishCard";
 import { Badge } from "@/components/ui/badge";
+import { firmShortName } from "@/constants/firm";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -47,6 +49,7 @@ const item = {
 export default function Home() {
   const navigate = useNavigate();
   const { addItem } = useCart();
+  const { firm } = useFirm();
   const [dishes, setDishes] = useState([]);
   const [cats, setCats] = useState([]);
   const [offers, setOffers] = useState([]);
@@ -91,10 +94,10 @@ export default function Home() {
                 <Flame size={13} /> Fresh batches are cooked after you order
               </div>
               <h1 className="mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-none text-stone-950 dark:text-stone-50">
-                Mukhtar Cloud Kitchen
+                {firm.name}
               </h1>
               <p className="mt-5 text-lg text-stone-700 dark:text-stone-400 leading-relaxed max-w-xl">
-                Biryani, tandoor, curries, Chinese favorites, desserts, and drinks from a fast kitchen built for online orders, dine-in support, and counter service.
+                Biryani, tandoor, curries, Chinese favorites, desserts, and drinks from a fast restaurant built for online orders, dine-in support, and counter service.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link to="/menu">
@@ -226,7 +229,7 @@ export default function Home() {
                     {c.image_url ? (
                       <img src={c.image_url} alt={c.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-stone-400 font-display font-semibold">Mukhtar</div>
+                      <div className="w-full h-full flex items-center justify-center text-stone-400 font-display font-semibold">{firmShortName(firm)}</div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                     <div className="absolute bottom-3 left-3 text-white font-semibold text-sm">{c.name}</div>

@@ -3,10 +3,13 @@ import { Flame, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useCart } from "@/context/CartContext";
+import { useFirm } from "@/context/FirmContext";
+import { firmShortName } from "@/constants/firm";
 import { formatMoney } from "@/lib/format";
 
 export default function DishCard({ dish }) {
   const { addItem } = useCart();
+  const { firm } = useFirm();
   const unavailable = dish.is_available === false;
 
   const handleAdd = () => {
@@ -41,7 +44,7 @@ export default function DishCard({ dish }) {
           />
         ) : (
           <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-400 font-display font-semibold">
-            Mukhtar
+            {firmShortName(firm)}
           </div>
         )}
         <div className="absolute inset-x-0 top-0 p-3 flex items-start justify-between gap-2">

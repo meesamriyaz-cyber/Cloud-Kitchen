@@ -12,7 +12,7 @@ export default function ApiUnavailable({ title = "Kitchen data is unavailable", 
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-lg font-semibold">{title}</h2>
           <p className="mt-1 text-sm text-amber-800">
-            {message || "The API is running, but the database is not connected. Check backend/.env MUKHTAR_KITCHEN__MONGO_URI or start MongoDB, then retry."}
+            {message || "The API is running, but the database is not connected. Check backend/.env RESTAURANT_APP_MONGO_URI or start MongoDB, then retry."}
           </p>
           {onRetry && (
             <Button type="button" variant="outline" className="mt-4 rounded-full bg-white" onClick={onRetry}>

@@ -3,6 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
+import { useFirm } from "@/context/FirmContext";
 import CartSheet from "@/components/CartSheet";
 import ThemeToggle from "@/components/ThemeToggle";
 import ScrollToTop from "@/components/ScrollToTop";
@@ -15,6 +16,7 @@ import {
 export default function Layout() {
   const { user, logout } = useAuth();
   const { count, setOpen } = useCart();
+  const { firm } = useFirm();
   const navigate = useNavigate();
   const location = useLocation();
   const isStaff = user && ["admin", "staff"].includes(user.role);
@@ -49,8 +51,8 @@ export default function Layout() {
               <ChefHat size={18} />
             </div>
             <div className="leading-none">
-              <div className="font-display font-bold text-lg tracking-tight">Mukhtar</div>
-              <div className="text-[10px] uppercase text-stone-500 dark:text-stone-400">Cloud Kitchen</div>
+              <div className="font-display font-bold text-lg tracking-tight">{firm.short_name || firm.name}</div>
+              <div className="text-[10px] uppercase text-stone-500 dark:text-stone-400">{firm.business_type || "Restaurant"}</div>
             </div>
           </Link>
 
@@ -179,7 +181,7 @@ export default function Layout() {
       {!isOpsRoute && (
         <footer className="border-t border-stone-200 dark:border-stone-700 mt-10 bg-white/50 dark:bg-stone-900/50">
           <div className="max-w-7xl mx-auto px-5 py-8 text-sm text-stone-500 dark:text-stone-400 flex flex-wrap items-center justify-between gap-3">
-            <div>&copy; {new Date().getFullYear()} Mukhtar Cloud Kitchen. Cooked fresh for every order.</div>
+            <div>&copy; {new Date().getFullYear()} {firm.name}. {firm.tagline}</div>
             <div className="flex items-center gap-4">
               <Link to="/menu" className="hover:text-stone-800 dark:hover:text-stone-200">Menu</Link>
               <Link to="/orders" className="hover:text-stone-800 dark:hover:text-stone-200">Orders</Link>

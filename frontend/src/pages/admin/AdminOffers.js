@@ -119,7 +119,7 @@ export default function AdminOffers() {
           <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>{editing ? "Edit Offer" : "Add Offer"}</DialogTitle></DialogHeader>
             <div className="space-y-3">
-              <div><Label className="text-stone-700 dark:text-stone-300">Code</Label><Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. MUKHTAR20" className="mt-1 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="offer-form-code" /></div>
+              <div><Label className="text-stone-700 dark:text-stone-300">Code</Label><Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. WELCOME20" className="mt-1 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100" data-testid="offer-form-code" /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label className="text-stone-700 dark:text-stone-300">Type</Label>
                   <Select value={form.discount_type} onValueChange={v => setForm({ ...form, discount_type: v })}>

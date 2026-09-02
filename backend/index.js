@@ -10,11 +10,14 @@ import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { randomUUID } from 'crypto';
 import multer from 'multer';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = parseInt(process.env.PORT || '8002', 10);
-const MONGO_URL = process.env.MUKHTAR_KITCHEN__MONGO_URI ;
-const DB_NAME = process.env.DB_NAME || 'mukhtar_kitchen';
+const MONGO_URL = process.env.RESTAURANT_APP_MONGO_URI || process.env.MONGO_URI;
+let DB_NAME = process.env.DB_NAME || '';
 const JWT_SECRET = process.env.JWT_SECRET;
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
@@ -38,17 +41,29 @@ const ORDER_STATUS_LABELS = {
 };
 const STAFF_ROLES = new Set(['admin', 'staff']);
 const KITCHEN_ROLES = new Set(['admin', 'staff', 'chef']);
-const FIRM = {
-  name: 'Mukhtar Cloud Kitchen',
-  tagline: 'Cooked fresh for every order',
-  address: 'Barzulla, Rambagh',
-  city: 'Srinagar',
-  state: 'J&K - 190005',
-  phone: '040-1234-5678',
-  email: 'orders@mukhtar.com',
-  gst: '29AAEFM1234E1Z5',
-  website: 'www.mukhtar.com',
+const DEFAULT_FIRM = {
+  name: 'Your Restaurant',
+  short_name: 'Your Restaurant',
+  tagline: 'Fresh food, made for every order',
+  business_type: 'Restaurant',
+  address: '',
+  city: '',
+  state: '',
+  phone: '',
+  email: '',
+  gst: '',
+  website: '',
+  fssai: '',
+  upi_id: process.env.DEFAULT_UPI_ID || '',
+  currency: 'INR',
+  theme_color: '#C2410C',
+  setup_complete: false,
 };
+const FIRM_FIELDS = Object.keys(DEFAULT_FIRM).filter(field => field !== 'setup_complete');
+const MEDIA_FOLDER = process.env.CLOUDINARY_FOLDER || 'restaurant_app';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ENV_FILE_PATH = path.join(__dirname, '.env');
 
 function orderCustomer(order) {
   return order?.address?.full_name || order?.pos_customer_name || 'Walk-in';
@@ -94,8 +109,8 @@ if (CLOUDINARY_ENABLED) {
     cloudinaryInstance = cloudinary.default;
     cloudinaryInstance.config({ cloud_name: CLOUDINARY_CLOUD_NAME, api_key: CLOUDINARY_API_KEY, api_secret: CLOUDINARY_API_SECRET });
     try {
-      await cloudinaryInstance.api.create_folder('mukhtar_kitchen');
-      console.log('[cloudinary] ensured folder mukhtar_kitchen exists');
+      await cloudinaryInstance.api.create_folder(MEDIA_FOLDER);
+      console.log(`[cloudinary] ensured folder ${MEDIA_FOLDER} exists`);
     } catch (folderError) {
       console.warn('[cloudinary] folder check warning', folderError.message);
     }
@@ -112,12 +127,22 @@ mongoose.connection.on('connected', () => { mongoConnected = true; });
 mongoose.connection.on('disconnected', () => { mongoConnected = false; });
 mongoose.connection.on('error', () => { mongoConnected = false; });
 
-async function connectMongo(delay = 5000) {
-  if (mongoConnecting) return;
+async function connectMongo(delay = 5000, maxAttempts = Infinity) {
+  if (!MONGO_URL) throw httpError(500, 'MongoDB URL is not configured');
+  if (!DB_NAME) throw httpError(400, 'Database name is required before connecting');
+  if (mongoConnected) return true;
+  if (mongoConnecting) {
+    let waits = 0;
+    while (mongoConnecting && !mongoConnected && waits < maxAttempts) {
+      waits += 1;
+      await new Promise(r => setTimeout(r, delay));
+    }
+    return mongoConnected;
+  }
   mongoConnecting = true;
   let attempt = 1;
 
-  while (!mongoConnected) {
+  while (!mongoConnected && attempt <= maxAttempts) {
     try {
       await mongoose.connect(MONGO_URL, { dbName: DB_NAME });
       mongoConnected = true;
@@ -132,9 +157,16 @@ async function connectMongo(delay = 5000) {
   }
 
   mongoConnecting = false;
+  return mongoConnected;
 }
 
-connectMongo();
+if (MONGO_URL && DB_NAME) {
+  connectMongo().catch(err => console.error('[mongo] startup connect failed:', err.message));
+} else if (!DB_NAME) {
+  console.warn('[config] DB_NAME is not set. Starting in first-run setup mode.');
+} else {
+  console.warn('[config] MongoDB URL is not configured. Database features will be unavailable.');
+}
 
 const uid = (prefix) => `${prefix}_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
 
@@ -216,12 +248,33 @@ const CounterSchema = new mongoose.Schema({
   seq: { type: Number, default: 0 },
 }, { versionKey: false });
 
+const FirmSettingSchema = new mongoose.Schema({
+  key: { type: String, unique: true, index: true, default: 'primary' },
+  name: String,
+  short_name: String,
+  tagline: String,
+  business_type: String,
+  address: String,
+  city: String,
+  state: String,
+  phone: String,
+  email: String,
+  gst: String,
+  website: String,
+  fssai: String,
+  upi_id: String,
+  currency: { type: String, default: 'INR' },
+  theme_color: String,
+  setup_complete: { type: Boolean, default: false },
+}, { timestamps: true, versionKey: false });
+
 const User = mongoose.model('User', UserSchema);
 const Category = mongoose.model('Category', CategorySchema);
 const Dish = mongoose.model('Dish', DishSchema);
 const Coupon = mongoose.model('Coupon', CouponSchema);
 const Order = mongoose.model('Order', OrderSchema);
 const Counter = mongoose.model('Counter', CounterSchema);
+const FirmSetting = mongoose.model('FirmSetting', FirmSettingSchema);
 
 async function nextOrderNo() {
   const c = await Counter.findByIdAndUpdate('order_no', { $inc: { seq: 1 } }, { new: true, upsert: true });
@@ -244,8 +297,15 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '2mb' }));
 
+const BOOTSTRAP_PATHS = new Set([
+  '/api/health',
+  '/api/firm',
+  '/api/bootstrap/status',
+  '/api/bootstrap/initialize',
+]);
+
 app.use((req, res, next) => {
-  if (!mongoConnected && req.path !== '/api/health') {
+  if (!mongoConnected && !BOOTSTRAP_PATHS.has(req.path)) {
     return res.status(503).json({ detail: 'Database unavailable - please start MongoDB' });
   }
   next();
@@ -336,13 +396,226 @@ function publicUser(u) {
   return { user_id: u.user_id, name: u.name, email: u.email, role: u.role || 'customer', picture: u.picture || null, phone: u.phone || '' };
 }
 
+function normalizeDbName(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 63);
+}
+
+function assertValidDbName(value) {
+  if (!/^[a-z0-9_-]{2,63}$/.test(value)) {
+    throw httpError(400, 'Database name must be 2-63 characters and use only letters, numbers, underscore, or hyphen');
+  }
+}
+
+async function persistEnvValue(key, value) {
+  const cleanValue = String(value || '').replace(/\r?\n/g, '').trim();
+  let text = '';
+  try {
+    text = await fs.readFile(ENV_FILE_PATH, 'utf8');
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+  }
+
+  const line = `${key}=${cleanValue}`;
+  const pattern = new RegExp(`^${key}=.*$`, 'm');
+  const nextText = pattern.test(text)
+    ? text.replace(pattern, line)
+    : `${text}${text && !text.endsWith('\n') ? '\n' : ''}${line}\n`;
+
+  await fs.writeFile(ENV_FILE_PATH, nextText, 'utf8');
+  process.env[key] = cleanValue;
+}
+
+function normalizeFirm(raw = {}) {
+  const firm = { ...DEFAULT_FIRM };
+  for (const field of FIRM_FIELDS) {
+    const value = raw[field];
+    if (value !== undefined && value !== null) {
+      firm[field] = typeof value === 'string' ? value.trim() : value;
+    }
+  }
+  firm.name = firm.name || DEFAULT_FIRM.name;
+  firm.short_name = firm.short_name || firm.name;
+  firm.tagline = firm.tagline || DEFAULT_FIRM.tagline;
+  firm.business_type = firm.business_type || DEFAULT_FIRM.business_type;
+  firm.currency = firm.currency || DEFAULT_FIRM.currency;
+  firm.theme_color = firm.theme_color || DEFAULT_FIRM.theme_color;
+  firm.setup_complete = Boolean(raw.setup_complete);
+  return firm;
+}
+
+async function getFirmSettings() {
+  if (!mongoConnected) return normalizeFirm({});
+  const settings = await FirmSetting.findOne({ key: 'primary' }).lean();
+  return normalizeFirm(settings || {});
+}
+
+function firmPayload(input = {}) {
+  const payload = {};
+  for (const field of FIRM_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(input, field)) {
+      payload[field] = typeof input[field] === 'string' ? input[field].trim() : input[field];
+    }
+  }
+  return normalizeFirm(payload);
+}
+
+async function seedStarterInventory() {
+  const existingCategories = await Category.countDocuments({});
+  if (existingCategories === 0) {
+    await Category.insertMany([
+      { name: 'Starters', sort: 1 },
+      { name: 'Main Course', sort: 2 },
+      { name: 'Rice & Biryani', sort: 3 },
+      { name: 'Breads', sort: 4 },
+      { name: 'Beverages', sort: 5 },
+      { name: 'Desserts', sort: 6 },
+    ]);
+  }
+
+  const welcomeOffer = await Coupon.findOne({ code: 'WELCOME20' });
+  if (!welcomeOffer) {
+    await Coupon.create({ code: 'WELCOME20', discount_type: 'percent', value: 20, min_order: 299, max_discount: 150, active: true });
+  }
+
+  const [categories, dishes, coupons] = await Promise.all([
+    Category.countDocuments({}),
+    Dish.countDocuments({}),
+    Coupon.countDocuments({}),
+  ]);
+  return { categories, dishes, coupons };
+}
+
+async function getBootstrapStatus() {
+  const base = {
+    mongo_url_configured: Boolean(MONGO_URL),
+    db_name: DB_NAME || '',
+    database: mongoConnected ? 'connected' : 'disconnected',
+    setup_complete: false,
+    has_admin: false,
+    needs_setup: !DB_NAME,
+    firm: normalizeFirm({}),
+  };
+
+  if (!DB_NAME || !mongoConnected) return base;
+
+  const [settings, adminCount] = await Promise.all([
+    FirmSetting.findOne({ key: 'primary' }).lean(),
+    User.countDocuments({ role: 'admin' }),
+  ]);
+  const firm = normalizeFirm(settings || {});
+  const setupComplete = Boolean(firm.setup_complete && adminCount > 0);
+  return {
+    ...base,
+    firm,
+    has_admin: adminCount > 0,
+    setup_complete: setupComplete,
+    needs_setup: !setupComplete,
+  };
+}
+
 app.get('/api/health', (_req, res) => res.json({
   ok: true,
   stack: 'MERN',
   database: mongoConnected ? 'connected' : 'disconnected',
+  db_name: DB_NAME || null,
+  setup_mode: !DB_NAME,
 }));
 
-app.get('/api/firm', (_req, res) => res.json(FIRM));
+app.get('/api/firm', async (_req, res) => res.json(await getFirmSettings()));
+
+app.get('/api/bootstrap/status', async (_req, res) => res.json(await getBootstrapStatus()));
+
+app.post('/api/bootstrap/initialize', async (req, res) => {
+  const body = req.body || {};
+  const dbName = normalizeDbName(body.db_name);
+  assertValidDbName(dbName);
+
+  const firmInput = body.firm || {};
+  if (!String(firmInput.name || '').trim()) throw httpError(400, 'Restaurant name is required');
+
+  const admin = body.admin || {};
+  const adminName = String(admin.name || '').trim();
+  const adminEmail = String(admin.email || '').trim().toLowerCase();
+  const adminPassword = String(admin.password || '');
+  if (!adminName || !adminEmail || !adminPassword) throw httpError(400, 'Admin name, email, and password are required');
+  if (adminPassword.length < 6) throw httpError(400, 'Admin password must be at least 6 characters');
+
+  if (DB_NAME && DB_NAME !== dbName) {
+    throw httpError(409, `This app is already configured to use database "${DB_NAME}"`);
+  }
+
+  const previousDbName = DB_NAME;
+  DB_NAME = dbName;
+  process.env.DB_NAME = dbName;
+  const connected = await connectMongo(1000, 10);
+  if (!connected) {
+    DB_NAME = previousDbName;
+    process.env.DB_NAME = previousDbName;
+    throw httpError(503, 'Could not connect to MongoDB with the selected database name');
+  }
+
+  const currentStatus = await getBootstrapStatus();
+  if (currentStatus.setup_complete) {
+    throw httpError(409, 'Restaurant setup has already been completed');
+  }
+
+  await persistEnvValue('DB_NAME', dbName);
+
+  const firm = firmPayload(firmInput);
+  const savedFirm = await FirmSetting.findOneAndUpdate(
+    { key: 'primary' },
+    { $set: { ...firm, key: 'primary', setup_complete: true } },
+    { new: true, upsert: true }
+  );
+
+  const existingAdmin = await User.findOne({ email: adminEmail });
+  if (existingAdmin && existingAdmin.role !== 'admin') {
+    throw httpError(400, 'A non-admin user already exists with this email');
+  }
+
+  const hash = await bcrypt.hash(adminPassword, 10);
+  let owner = existingAdmin;
+  if (owner) {
+    owner.name = adminName;
+    owner.password = hash;
+    owner.role = 'admin';
+    await owner.save();
+  } else {
+    owner = await User.create({
+      name: adminName,
+      email: adminEmail,
+      password: hash,
+      role: 'admin',
+      provider: 'local',
+    });
+  }
+
+  const inventory = body.seed_inventory === false ? null : await seedStarterInventory();
+
+  res.json({
+    ok: true,
+    db_name: DB_NAME,
+    firm: normalizeFirm(savedFirm.toObject()),
+    inventory,
+    token: signJwt(owner.user_id),
+    user: publicUser(owner),
+  });
+});
+
+app.put('/api/firm', adminStrict, async (req, res) => {
+  const payload = firmPayload(req.body || {});
+  const settings = await FirmSetting.findOneAndUpdate(
+    { key: 'primary' },
+    { $set: { ...payload, key: 'primary', setup_complete: true } },
+    { new: true, upsert: true }
+  ).lean();
+  res.json(normalizeFirm(settings));
+});
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -355,7 +628,7 @@ app.post('/api/upload', adminOnly, upload.single('image'), async (req, res) => {
     const result = await cloudinaryInstance.uploader.upload(
       `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
       {
-        folder: 'mukhtar_kitchen',
+        folder: MEDIA_FOLDER,
         transformation: [{ width: 800, height: 600, crop: 'limit', quality: 'auto', fetch_format: 'auto' }],
       }
     );
@@ -643,7 +916,7 @@ app.get('/api/orders/:oid/invoice', authRequired, async (req, res) => {
     total: roundMoney(i.price * i.qty),
   }));
   const invoice = {
-    firm: FIRM,
+    firm: await getFirmSettings(),
     id: o.id,
     order_no: o.order_no,
     created_at: o.created_at,
@@ -705,12 +978,13 @@ app.post('/api/pos/orders/:id/payment-link', posAccess, async (req, res) => {
   const order = await Order.findOne({ id: req.params.id });
   if (!order) return res.status(404).json({ detail: 'Order not found' });
   if (!RAZORPAY_ENABLED) return res.status(400).json({ detail: 'Razorpay not configured' });
+  const firm = await getFirmSettings();
   try {
     const link = await rzp.paymentLink.create({
       amount: Math.round(order.total * 100),
       currency: 'INR',
       reference_id: order.id,
-      description: `Order #${order.order_no} - Mukhtar Cloud Kitchen`,
+      description: `Order #${order.order_no} - ${firm.name}`,
       notify: { sms: false, email: false },
       reminder_enable: false,
     });
@@ -724,8 +998,10 @@ app.post('/api/pos/orders/:id/payment-link', posAccess, async (req, res) => {
 app.post('/api/pos/orders/:id/upi-deep-link', posAccess, async (req, res) => {
   const order = await Order.findOne({ id: req.params.id });
   if (!order) return res.status(404).json({ detail: 'Order not found' });
-  const { upi_id = 'mukhtar@okhdfcbank' } = req.body || {};
-  const upiUrl = `upi://pay?pa=${encodeURIComponent(upi_id)}&pn=${encodeURIComponent('Mukhtar Cloud Kitchen')}&am=${order.total}&cu=INR&tn=${encodeURIComponent(`Order #${order.order_no}`)}`;
+  const firm = await getFirmSettings();
+  const upi_id = String(req.body?.upi_id || firm.upi_id || '').trim();
+  if (!upi_id) return res.status(400).json({ detail: 'UPI ID is not configured' });
+  const upiUrl = `upi://pay?pa=${encodeURIComponent(upi_id)}&pn=${encodeURIComponent(firm.name)}&am=${order.total}&cu=${encodeURIComponent(firm.currency || 'INR')}&tn=${encodeURIComponent(`Order #${order.order_no}`)}`;
   res.json({ upi_url: upiUrl, upi_id });
 });
 
@@ -894,32 +1170,39 @@ app.get('/api/admin/sales/report', adminOnly, async (req, res) => {
 });
 
 app.post('/api/seed', async (_req, res) => {
-  const admin = await User.findOne({ email: 'admin@mukhtar.com' });
+  const seedUsers = {
+    admin: 'admin@restaurant.local',
+    salesman: 'salesman@restaurant.local',
+    customer: 'customer@restaurant.local',
+    chef: 'chef@restaurant.local',
+  };
+
+  const admin = await User.findOne({ email: seedUsers.admin });
   if (!admin) {
     const hash = await bcrypt.hash('Admin@123', 10);
-    await User.create({ name: 'Admin', email: 'admin@mukhtar.com', password: hash, role: 'admin', provider: 'local' });
+    await User.create({ name: 'Admin', email: seedUsers.admin, password: hash, role: 'admin', provider: 'local' });
   }
 
-  const salesman = await User.findOne({ email: 'salesman@mukhtar.com' });
+  const salesman = await User.findOne({ email: seedUsers.salesman });
   if (!salesman) {
     const hash = await bcrypt.hash('Salesman@123', 10);
-    await User.create({ name: 'Salesman', email: 'salesman@mukhtar.com', password: hash, role: 'salesman', provider: 'local' });
+    await User.create({ name: 'Salesman', email: seedUsers.salesman, password: hash, role: 'salesman', provider: 'local' });
   }
 
-  const customer = await User.findOne({ email: 'customer@mukhtar.com' });
+  const customer = await User.findOne({ email: seedUsers.customer });
   if (!customer) {
     const hash = await bcrypt.hash('Customer@123', 10);
-    await User.create({ name: 'Customer', email: 'customer@mukhtar.com', password: hash, role: 'customer', provider: 'local' });
+    await User.create({ name: 'Customer', email: seedUsers.customer, password: hash, role: 'customer', provider: 'local' });
   }
 
-  const chef = await User.findOne({ email: 'chef@mukhtar.com' });
+  const chef = await User.findOne({ email: seedUsers.chef });
   if (!chef) {
     const hash = await bcrypt.hash('Chef@123', 10);
-    await User.create({ name: 'Chef', email: 'chef@mukhtar.com', password: hash, role: 'chef', provider: 'local' });
+    await User.create({ name: 'Chef', email: seedUsers.chef, password: hash, role: 'chef', provider: 'local' });
   }
 
   const existing = await Dish.countDocuments({});
-  if (existing > 0) return res.json({ ok: true, message: 'Users seeded', users: { admin: 'admin@mukhtar.com', salesman: 'salesman@mukhtar.com', customer: 'customer@mukhtar.com', chef: 'chef@mukhtar.com' } });
+  if (existing > 0) return res.json({ ok: true, message: 'Users seeded', users: seedUsers });
 
   const cats = [
     { name: 'Biryani', image_url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400', sort: 1 },
@@ -948,10 +1231,10 @@ app.post('/api/seed', async (_req, res) => {
   ];
   await Dish.insertMany(dishes);
 
-  const c = await Coupon.findOne({ code: 'MUKHTAR20' });
-  if (!c) await Coupon.create({ code: 'MUKHTAR20', discount_type: 'percent', value: 20, min_order: 299, max_discount: 150, active: true });
+  const c = await Coupon.findOne({ code: 'WELCOME20' });
+  if (!c) await Coupon.create({ code: 'WELCOME20', discount_type: 'percent', value: 20, min_order: 299, max_discount: 150, active: true });
 
-  res.json({ ok: true, categories: cats.length, dishes: dishes.length, users: { admin: 'admin@mukhtar.com', salesman: 'salesman@mukhtar.com', customer: 'customer@mukhtar.com', chef: 'chef@mukhtar.com' } });
+  res.json({ ok: true, categories: cats.length, dishes: dishes.length, users: seedUsers });
 });
 
 app.use((err, _req, res, _next) => {

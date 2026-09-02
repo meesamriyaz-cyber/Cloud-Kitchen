@@ -178,7 +178,7 @@ export function generateReceiptHTML(invoice) {
 export function printReceipt(invoice) {
   try {
     const html = generateReceiptHTML(invoice);
-    const popup = window.open("", "mukhtar-receipt-print", "width=420,height=720,scrollbars=yes");
+    const popup = window.open("", "restaurant-receipt-print", "width=420,height=720,scrollbars=yes");
     if (!popup) {
       console.error("[receipt] popup blocked");
       return false;
@@ -195,7 +195,7 @@ export function printReceipt(invoice) {
 }
 
 export async function printReceiptByOrder(orderId) {
-  const token = localStorage.getItem("mck_token");
+  const token = localStorage.getItem("restaurant_app_token");
   if (token) axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
   const res = await axios.get(`${API}/orders/${orderId}/invoice`, { withCredentials: true });
   return printReceipt(res.data);

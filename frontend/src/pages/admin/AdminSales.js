@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ApiUnavailable from "@/components/ApiUnavailable";
+import { useFirm } from "@/context/FirmContext";
 import { formatMoney, humanStatus, orderCustomer, orderPhone, shortOrderId } from "@/lib/format";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -19,6 +20,7 @@ const channelColors = {
 };
 
 export default function AdminSales() {
+  const { firm } = useFirm();
   const [report, setReport] = useState(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -79,7 +81,7 @@ export default function AdminSales() {
         </head>
         <body>
           <h1>${reportTitle}</h1>
-          <div class="meta">${new Date().toLocaleString()} | Mukhtar Cloud Kitchen</div>
+          <div class="meta">${new Date().toLocaleString()} | ${firm.name}</div>
           <div class="grid">
             <div class="tile"><div class="value">${formatMoney(report?.revenue || 0, { noPaise: true })}</div><div class="label">Revenue</div></div>
             <div class="tile"><div class="value">${report?.orders || 0}</div><div class="label">Orders</div></div>

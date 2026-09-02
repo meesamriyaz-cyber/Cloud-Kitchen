@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import { Printer, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useFirm } from "@/context/FirmContext";
 import { formatMoney, shortOrderId } from "@/lib/format";
 import { printReceipt } from "@/lib/receipt";
 
@@ -10,6 +11,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function Invoice() {
   const { oid } = useParams();
+  const { firm: currentFirm } = useFirm();
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,6 +45,8 @@ export default function Invoice() {
     );
   }
 
+  const firm = invoice.firm || currentFirm;
+
   return (
     <div className="max-w-3xl mx-auto px-5 py-10">
       <div className="flex items-center justify-between mb-6 no-print">
@@ -63,7 +67,7 @@ export default function Invoice() {
       <div className="soft-panel p-8 space-y-6" id="invoice-area">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="font-display text-xl font-bold dark:text-stone-100">Mukhtar Cloud Kitchen</h2>
+            <h2 className="font-display text-xl font-bold dark:text-stone-100">{firm.name}</h2>
             <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Invoice #{shortOrderId(invoice)}</p>
             <p className="text-stone-500 dark:text-stone-400 text-sm">{new Date(invoice.created_at).toLocaleString()}</p>
           </div>
@@ -155,7 +159,7 @@ export default function Invoice() {
         </div>
 
         <div className="pt-6 text-center text-xs text-stone-400 dark:text-stone-500">
-          Thank you for ordering with Mukhtar Cloud Kitchen!
+          Thank you for ordering with {firm.name}!
         </div>
       </div>
     </div>
