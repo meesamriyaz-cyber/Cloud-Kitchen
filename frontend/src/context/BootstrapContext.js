@@ -7,6 +7,7 @@ const BootstrapCtx = createContext({
   loading: true,
   error: "",
   refreshBootstrap: async () => null,
+  testDatabase: async () => null,
   initializeSetup: async () => null,
 });
 
@@ -28,6 +29,11 @@ export function BootstrapProvider({ children }) {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const testDatabase = useCallback(async (payload) => {
+    const res = await axios.post(`${API}/bootstrap/test-database`, payload);
+    return res.data;
   }, []);
 
   const initializeSetup = useCallback(async (payload) => {
@@ -54,8 +60,9 @@ export function BootstrapProvider({ children }) {
     loading,
     error,
     refreshBootstrap,
+    testDatabase,
     initializeSetup,
-  }), [status, loading, error, refreshBootstrap, initializeSetup]);
+  }), [status, loading, error, refreshBootstrap, testDatabase, initializeSetup]);
 
   return <BootstrapCtx.Provider value={value}>{children}</BootstrapCtx.Provider>;
 }
