@@ -16,7 +16,7 @@ import { fileURLToPath } from 'url';
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = parseInt(process.env.PORT || '8002', 10);
-const MONGO_URL = process.env.RESTAURANT_APP_MONGO_URI || process.env.MONGO_URI;
+let MONGO_URL = process.env.RESTAURANT_APP_MONGO_URI || process.env.MONGO_URI || '';
 let DB_NAME = process.env.DB_NAME || '';
 const JWT_SECRET = process.env.JWT_SECRET;
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
@@ -301,6 +301,7 @@ const BOOTSTRAP_PATHS = new Set([
   '/api/health',
   '/api/firm',
   '/api/bootstrap/status',
+  '/api/bootstrap/test-database',
   '/api/bootstrap/initialize',
 ]);
 
@@ -394,6 +395,21 @@ function transitionOrderStatus(order, newStatus) {
 
 function publicUser(u) {
   return { user_id: u.user_id, name: u.name, email: u.email, role: u.role || 'customer', picture: u.picture || null, phone: u.phone || '' };
+}
+
+function normalizeMongoUrl(value) {
+  const url = String(value || '').trim().replace(/\r?\n/g, '');
+  if (!url) throw httpError(400, 'MongoDB connection URL is required');
+  if (!url.startsWith('mongodb://') && !url.startsWith('mongodb+srv://')) {
+    throw httpError(400, 'MongoDB URL must start with mongodb:// or mongodb+srv://');
+  }
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname) throw new Error('Missing MongoDB host');
+  } catch {
+    throw httpError(400, 'Invalid MongoDB connection URL');
+  }
+  return url;
 }
 
 function normalizeDbName(value) {
@@ -530,8 +546,34 @@ app.get('/api/firm', async (_req, res) => res.json(await getFirmSettings()));
 
 app.get('/api/bootstrap/status', async (_req, res) => res.json(await getBootstrapStatus()));
 
+app.post('/api/bootstrap/test-database', async (req, res) => {
+  const mongoUrl = normalizeMongoUrl(req.body?.mongo_url);
+  const dbName = normalizeDbName(req.body?.db_name);
+  assertValidDbName(dbName);
+
+  let connection = null;
+  try {
+    connection = await mongoose.createConnection(mongoUrl, {
+      dbName,
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 8000,
+    }).asPromise();
+
+    res.json({ ok: true, database: 'connected', db_name: dbName });
+  } catch (err) {
+    console.error('[bootstrap] MongoDB test connection failed:', err.message);
+    res.status(400).json({
+      ok: false,
+      detail: 'Could not connect to MongoDB. Check the URL, database name, credentials, and MongoDB network access settings.',
+    });
+  } finally {
+    if (connection) await connection.close().catch(() => {});
+  }
+});
+
 app.post('/api/bootstrap/initialize', async (req, res) => {
   const body = req.body || {};
+  const mongoUrl = normalizeMongoUrl(body.mongo_url);
   const dbName = normalizeDbName(body.db_name);
   assertValidDbName(dbName);
 
@@ -548,15 +590,26 @@ app.post('/api/bootstrap/initialize', async (req, res) => {
   if (DB_NAME && DB_NAME !== dbName) {
     throw httpError(409, `This app is already configured to use database "${DB_NAME}"`);
   }
+  if (MONGO_URL && MONGO_URL !== mongoUrl) {
+    throw httpError(409, 'This app is already configured to use a different MongoDB connection');
+  }
 
+  const previousMongoUrl = MONGO_URL;
   const previousDbName = DB_NAME;
+  MONGO_URL = mongoUrl;
   DB_NAME = dbName;
+  process.env.RESTAURANT_APP_MONGO_URI = mongoUrl;
   process.env.DB_NAME = dbName;
+
   const connected = await connectMongo(1000, 10);
   if (!connected) {
+    MONGO_URL = previousMongoUrl;
     DB_NAME = previousDbName;
-    process.env.DB_NAME = previousDbName;
-    throw httpError(503, 'Could not connect to MongoDB with the selected database name');
+    if (previousMongoUrl) process.env.RESTAURANT_APP_MONGO_URI = previousMongoUrl;
+    else delete process.env.RESTAURANT_APP_MONGO_URI;
+    if (previousDbName) process.env.DB_NAME = previousDbName;
+    else delete process.env.DB_NAME;
+    throw httpError(503, 'Could not connect to MongoDB with the selected connection and database name');
   }
 
   const currentStatus = await getBootstrapStatus();
@@ -564,6 +617,7 @@ app.post('/api/bootstrap/initialize', async (req, res) => {
     throw httpError(409, 'Restaurant setup has already been completed');
   }
 
+  await persistEnvValue('RESTAURANT_APP_MONGO_URI', mongoUrl);
   await persistEnvValue('DB_NAME', dbName);
 
   const firm = firmPayload(firmInput);
