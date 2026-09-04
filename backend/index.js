@@ -13,6 +13,7 @@ import multer from 'multer';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import licenseRouter from './licenseRouter.js';
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = parseInt(process.env.PORT || '8002', 10);
@@ -296,6 +297,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '2mb' }));
+app.use('/api/license', licenseRouter);
 
 const BOOTSTRAP_PATHS = new Set([
   '/api/health',
@@ -303,6 +305,8 @@ const BOOTSTRAP_PATHS = new Set([
   '/api/bootstrap/status',
   '/api/bootstrap/test-database',
   '/api/bootstrap/initialize',
+  '/api/license/status',
+  '/api/license/activate',
 ]);
 
 app.use((req, res, next) => {
