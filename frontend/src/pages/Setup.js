@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, ChefHat, Database, Eye, EyeOff, KeyRound, Loader2, Store, UserRound } from "lucide-react";
 import { toast } from "sonner";
@@ -94,7 +95,21 @@ export default function Setup() {
     }
   };
 
-  const activateLicense = async () => {\n    const code = form.activation_code.trim().toUpperCase();\n    if (!code) { toast.error("Enter the activation code from Cutting Edge Marketplace"); return; }\n    setActivatingLicense(true);\n    try {\n      await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/license/activate`, { code });\n      setLicenseActivated(true);\n      toast.success("Application activated");\n    } catch (err) {\n      toast.error(err.response?.data?.detail || "Activation failed");\n    } finally {\n      setActivatingLicense(false);\n    }\n  };\n  const submit = async (event) => {
+  const activateLicense = async () => {
+    const code = form.activation_code.trim().toUpperCase();
+    if (!code) { toast.error("Enter the activation code from Cutting Edge Marketplace"); return; }
+    setActivatingLicense(true);
+    try {
+      await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/license/activate`, { code });
+      setLicenseActivated(true);
+      toast.success("Application activated");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Activation failed");
+    } finally {
+      setActivatingLicense(false);
+    }
+  };
+  const submit = async (event) => {
     event.preventDefault();
     if (!licenseActivated) {
       toast.error("Activate the application before initialization");
@@ -232,7 +247,19 @@ export default function Setup() {
           </div>
         </section>
 
-        <section className="soft-panel p-5 md:p-6 border-primary/20 bg-primary/5">\n          <h2 className="font-display text-xl font-semibold flex items-center gap-2"><KeyRound size={18} /> Application Activation</h2>\n          <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">Generate an activation code from your Cutting Edge Marketplace account and enter it here.</p>\n          <div className="mt-5 flex flex-col sm:flex-row gap-3">\n            <Input value={form.activation_code} onChange={e => { setLicenseActivated(false); update("activation_code", e.target.value); }} placeholder="10-character activation code" maxLength={10} className="h-11 rounded-xl font-mono tracking-widest uppercase" />\n            <Button type="button" disabled={activatingLicense || saving || licenseActivated} onClick={activateLicense} className="rounded-xl">\n              {activatingLicense ? <Loader2 size={16} className="mr-2 animate-spin" /> : <KeyRound size={16} className="mr-2" />}\n              {licenseActivated ? "Activated" : activatingLicense ? "Activating..." : "Activate"}\n            </Button>\n          </div>\n          {licenseActivated && <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={16} /> License verified for this device</p>}\n        </section>\n        <section className="grid gap-5 md:grid-cols-2">
+        <section className="soft-panel p-5 md:p-6 border-primary/20 bg-primary/5">
+          <h2 className="font-display text-xl font-semibold flex items-center gap-2"><KeyRound size={18} /> Application Activation</h2>
+          <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">Generate an activation code from your Cutting Edge Marketplace account and enter it here.</p>
+          <div className="mt-5 flex flex-col sm:flex-row gap-3">
+            <Input value={form.activation_code} onChange={e => { setLicenseActivated(false); update("activation_code", e.target.value); }} placeholder="10-character activation code" maxLength={10} className="h-11 rounded-xl font-mono tracking-widest uppercase" />
+            <Button type="button" disabled={activatingLicense || saving || licenseActivated} onClick={activateLicense} className="rounded-xl">
+              {activatingLicense ? <Loader2 size={16} className="mr-2 animate-spin" /> : <KeyRound size={16} className="mr-2" />}
+              {licenseActivated ? "Activated" : activatingLicense ? "Activating..." : "Activate"}
+            </Button>
+          </div>
+          {licenseActivated && <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={16} /> License verified for this device</p>}
+        </section>
+        <section className="grid gap-5 md:grid-cols-2">
           <div className="soft-panel p-5 md:p-6">
             <h2 className="font-display text-xl font-semibold flex items-center gap-2"><Database size={18} /> Database</h2>
             <div className="mt-5 space-y-4">
