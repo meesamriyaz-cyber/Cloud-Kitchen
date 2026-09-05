@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const router = express.Router();
-const PRODUCT_ID = process.env.MARKETPLACE_PRODUCT_ID || '6a8012f3d2f0863ed722f468';
+const PRODUCT_ID = String(process.env.MARKETPLACE_PRODUCT_ID || '').trim();
 const LICENSE_API = (process.env.MARKETPLACE_LICENSE_API || 'https://apps.cuttingedge.in/api').replace(/\/$/, '');
 const __filename = fileURLToPath(import.meta.url);
 const DATA_DIR = path.join(path.dirname(__filename), 'data');
@@ -22,6 +22,12 @@ async function writeLicense(value) {
   await fs.writeFile(LICENSE_FILE, JSON.stringify(value, null, 2), { mode: 0o600 });
 }
 function deviceIdFor(existing) { return existing || `ck_${crypto.randomUUID()}`; }
+
+function ensureProductConfigured(res) {
+  if (PRODUCT_ID) return true;
+  res.status(503).json({ detail: 'Marketplace product is not configured for this installation.' });
+  return false;
+}
 
 async function marketplace(pathname, body) {
   const response = await fetch(`${LICENSE_API}${pathname}`, {
@@ -50,6 +56,7 @@ function publicLicense(record, remote = {}) {
 }
 
 router.get('/status', async (_req, res) => {
+  if (!ensureProductConfigured(res)) return;
   const record = await readLicense();
   if (!record?.deviceId || !record?.deviceSecret) return res.json(publicLicense(record));
   try {
@@ -65,6 +72,7 @@ router.get('/status', async (_req, res) => {
 });
 
 router.post('/activate', async (req, res) => {
+  if (!ensureProductConfigured(res)) return;
   const code = String(req.body?.code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code.length !== 10) return res.status(400).json({ detail: 'Enter the 10-character activation code from the Marketplace.' });
 
