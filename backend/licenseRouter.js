@@ -24,6 +24,7 @@ async function writeLicense(value) {
   await fs.writeFile(LICENSE_FILE, JSON.stringify(value, null, 2), { mode: 0o600 });
 }
 function deviceIdFor(existing) { return existing || `ck_${crypto.randomUUID()}`; }
+function isDevelopment() { return process.env.NODE_ENV !== 'production'; }
 
 function ensureProductConfigured(res) {
   if (PRODUCT_ID) return true;
@@ -88,10 +89,27 @@ function offlineResult(record) {
   });
 }
 
+function developmentExpiredResult(record) {
+  return publicLicense(record, {}, {
+    status: 'expired',
+    locked: true,
+    offline: false,
+    reason: 'dev_trial_expired',
+    developmentOverride: true,
+  });
+}
+
 router.get('/status', async (_req, res) => {
   if (!ensureProductConfigured(res)) return;
   const record = await readLicense();
   if (!record?.deviceId || !record?.deviceSecret) return res.json(publicLicense(record));
+
+  // Development-only local override. This deliberately bypasses the Marketplace
+  // so Test 5 can simulate an expired trial without changing the live license.
+  if (isDevelopment() && record.devOverride?.forceStatus === 'expired') {
+    return res.json(developmentExpiredResult(record));
+  }
+
   try {
     const remote = await marketplace('/license/device-status', { productId: PRODUCT_ID, deviceId: record.deviceId, deviceSecret: record.deviceSecret });
     record.status = remote.status || record.status;
@@ -133,6 +151,27 @@ router.post('/activate', async (req, res) => {
   } catch (err) {
     return res.status(err.statusCode || 502).json({ detail: err.message || 'Could not activate the application' });
   }
+});
+
+// Development-only test controls. They are hard-disabled when NODE_ENV=production.
+router.post('/dev/expire-trial', async (_req, res) => {
+  if (!isDevelopment()) return res.status(404).json({ detail: 'Not found' });
+  const record = await readLicense();
+  if (!record?.deviceId || !record?.deviceSecret) {
+    return res.status(400).json({ detail: 'No activated local license is available to expire.' });
+  }
+  record.devOverride = { forceStatus: 'expired', forcedAt: new Date().toISOString() };
+  await writeLicense(record);
+  return res.json(developmentExpiredResult(record));
+});
+
+router.post('/dev/clear-expiry', async (_req, res) => {
+  if (!isDevelopment()) return res.status(404).json({ detail: 'Not found' });
+  const record = await readLicense();
+  if (!record) return res.json({ status: 'none', developmentOverride: false });
+  delete record.devOverride;
+  await writeLicense(record);
+  return res.json({ ...publicLicense(record), developmentOverride: false });
 });
 
 export default router;
