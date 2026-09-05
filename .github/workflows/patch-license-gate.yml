@@ -1,0 +1,46 @@
+name: Patch persistent license gate
+on:
+  push:
+    branches: [bootstrap-mongodb-setup]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch persistent license gate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('frontend/src/App.js')
+          s=p.read_text()
+          if 'function LicenseGate(' not in s:
+              s=s.replace('import React from "react";', 'import React, { useState } from "react";\nimport axios from "axios";', 1)
+              marker='function SetupGate({ children }) {'
+              gate='''function LicenseGate({ children }) {\n  const [license, setLicense] = useState(null);\n  const [loading, setLoading] = useState(true);\n  const [code, setCode] = useState("");\n  const [busy, setBusy] = useState(false);\n\n  React.useEffect(() => {\n    let mounted = true;\n    axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/license/status`)\n      .then(res => { if (mounted) setLicense(res.data); })\n      .catch(() => { if (mounted) setLicense({ status: "unknown", offline: true }); })\n      .finally(() => { if (mounted) setLoading(false); });\n    return () => { mounted = false; };\n  }, []);\n\n  const activate = async () => {\n    const value = code.trim().toUpperCase();\n    if (value.length !== 10) return;\n    setBusy(true);\n    try {\n      const res = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/license/activate`, { code: value });\n      setLicense(res.data);\n      setCode("");\n    } catch (err) {\n      window.alert(err.response?.data?.detail || "Activation failed. Check the code and try again.");\n    } finally {\n      setBusy(false);\n    }\n  };\n\n  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-4 border-stone-200 dark:border-stone-700 border-t-primary"></div></div>;\n  if (["active", "trial"].includes(license?.status)) return children;\n\n  return (\n    <div className="min-h-screen flex items-center justify-center px-5 bg-background">\n      <div className="w-full max-w-md rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-7 shadow-sm">\n        <h1 className="font-display text-2xl font-bold">Application Activation</h1>\n        <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">Your Cloud Kitchen license is not currently active. Purchase or renew the application in the Cutting Edge Marketplace, generate an activation code, and enter it below.</p>\n        <input value={code} onChange={e => setCode(e.target.value.replace(/[^a-z0-9]/gi, "").slice(0,10).toUpperCase())} placeholder="10-character activation code" maxLength={10} className="mt-5 w-full h-11 rounded-xl border border-stone-300 dark:border-stone-600 bg-transparent px-3 font-mono tracking-widest uppercase" />\n        <button type="button" disabled={busy || code.length !== 10} onClick={activate} className="mt-3 w-full h-11 rounded-xl bg-primary text-white font-medium disabled:opacity-50">{busy ? "Activating..." : "Activate Application"}</button>\n        {license?.offline && <p className="mt-3 text-xs text-amber-700">The Marketplace could not be reached. Connect this computer to the internet and try again.</p>}\n      </div>\n    </div>\n  );\n}\n\n'''
+              s=s.replace(marker, gate+marker, 1)
+              s=s.replace('<Route element={<SetupGate><Layout /></SetupGate>}>', '<Route element={<SetupGate><LicenseGate><Layout /></LicenseGate></SetupGate>}>', 1)
+          p.write_text(s)
+          PY
+      - name: Verify and build
+        run: |
+          node --check backend/index.js
+          node --check backend/licenseRouter.js
+          cd frontend
+          npm install --legacy-peer-deps
+          CI=false npm run build
+      - name: Remove workflow and commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/src/App.js
+          git commit -m 'Add persistent Cloud Kitchen license gate' || true
+          git rm .github/workflows/patch-license-gate.yml
+          git commit -m 'Remove temporary license gate workflow'
+          git push
