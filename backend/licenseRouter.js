@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 const router = express.Router();
 const PRODUCT_ID = String(process.env.MARKETPLACE_PRODUCT_ID || '').trim();
 const LICENSE_API = (process.env.MARKETPLACE_LICENSE_API || 'https://apps.cuttingedge.in/api').replace(/\/$/, '');
+const OFFLINE_GRACE_HOURS = Math.max(1, Number(process.env.LICENSE_OFFLINE_GRACE_HOURS) || 72);
+const OFFLINE_GRACE_MS = OFFLINE_GRACE_HOURS * 60 * 60 * 1000;
 const __filename = fileURLToPath(import.meta.url);
 const DATA_DIR = path.join(path.dirname(__filename), 'data');
 const LICENSE_FILE = path.join(DATA_DIR, 'license.json');
@@ -43,16 +45,47 @@ async function marketplace(pathname, body) {
   return data;
 }
 
-function publicLicense(record, remote = {}) {
+function publicLicense(record, remote = {}, extra = {}) {
   return {
     status: remote.status || record?.status || 'none',
     productId: PRODUCT_ID,
-    serverTime: remote.serverTime || null,
-    trial: remote.trial || null,
-    license: remote.license || null,
+    serverTime: remote.serverTime || record?.lastServerTime || null,
+    trial: remote.trial || record?.trial || null,
+    license: remote.license || record?.license || null,
     activated: Boolean(record?.deviceSecret),
     deviceId: record?.deviceId || null,
+    ...extra,
   };
+}
+
+function remoteExpiry(record, remote) {
+  if (remote.status === 'trial') return remote.trial?.expiresAt || record?.trial?.expiresAt || null;
+  if (remote.status === 'active') return remote.license?.expiresAt || record?.license?.expiresAt || null;
+  return null;
+}
+
+function offlineResult(record) {
+  const now = Date.now();
+  const lastValidated = Date.parse(record?.lastValidatedAt || '');
+  const lastServer = Date.parse(record?.lastServerTime || '');
+  const lastKnownExpiry = remoteExpiry(record, { status: record?.status });
+  const validationBase = Number.isFinite(lastValidated) ? lastValidated : 0;
+  const graceUntil = validationBase ? validationBase + OFFLINE_GRACE_MS : 0;
+  const expired = lastKnownExpiry && Number.isFinite(lastServer) && lastServer >= Date.parse(lastKnownExpiry);
+  const graceExpired = !validationBase || now > graceUntil;
+
+  if (expired) {
+    return publicLicense(record, {}, { offline: true, locked: true, reason: 'license_expired', offlineGraceHours: OFFLINE_GRACE_HOURS });
+  }
+  if (graceExpired) {
+    return publicLicense(record, {}, { offline: true, locked: true, reason: 'offline_grace_expired', offlineGraceHours: OFFLINE_GRACE_HOURS });
+  }
+  return publicLicense(record, {}, {
+    offline: true,
+    locked: false,
+    offlineGraceHours: OFFLINE_GRACE_HOURS,
+    offlineGraceUntil: new Date(graceUntil).toISOString(),
+  });
 }
 
 router.get('/status', async (_req, res) => {
@@ -61,13 +94,15 @@ router.get('/status', async (_req, res) => {
   if (!record?.deviceId || !record?.deviceSecret) return res.json(publicLicense(record));
   try {
     const remote = await marketplace('/license/device-status', { productId: PRODUCT_ID, deviceId: record.deviceId, deviceSecret: record.deviceSecret });
-    if (remote.status) { record.status = remote.status; record.lastValidatedAt = new Date().toISOString(); await writeLicense(record); }
-    return res.json(publicLicense(record, remote));
+    record.status = remote.status || record.status;
+    record.trial = remote.trial || record.trial || null;
+    record.license = remote.license || record.license || null;
+    record.lastValidatedAt = new Date().toISOString();
+    record.lastServerTime = remote.serverTime || new Date().toISOString();
+    await writeLicense(record);
+    return res.json(publicLicense(record, remote, { offline: false, locked: remote.status === 'expired' }));
   } catch (err) {
-    const cached = publicLicense(record);
-    cached.offline = true;
-    cached.error = err.message;
-    return res.json(cached);
+    return res.json(offlineResult(record));
   }
 });
 
@@ -80,14 +115,18 @@ router.post('/activate', async (req, res) => {
   const deviceId = deviceIdFor(existing?.deviceId);
   try {
     const remote = await marketplace('/license/exchange-code', { productId: PRODUCT_ID, code, deviceId });
+    const now = new Date().toISOString();
     const record = {
       productId: PRODUCT_ID,
       deviceId,
       deviceSecret: remote.deviceSecret,
       deviceSecretHash: hash(remote.deviceSecret),
       status: remote.status,
-      activatedAt: new Date().toISOString(),
-      lastValidatedAt: new Date().toISOString(),
+      trial: remote.trial || null,
+      license: remote.license || null,
+      activatedAt: now,
+      lastValidatedAt: now,
+      lastServerTime: remote.serverTime || now,
     };
     await writeLicense(record);
     return res.json(publicLicense(record, remote));
