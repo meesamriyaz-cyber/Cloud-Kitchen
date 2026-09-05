@@ -68,13 +68,26 @@ function LicenseGate({ children }) {
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-4 border-stone-200 dark:border-stone-700 border-t-primary"></div></div>;
-  if (["active", "trial"].includes(license?.status)) return children;
+
+  const locked = license?.locked === true || license?.status === "expired";
+  if (["active", "trial"].includes(license?.status) && !locked) return children;
+
+  const graceExpired = license?.reason === "offline_grace_expired";
+  const licenseExpired = license?.reason === "license_expired" || license?.status === "expired";
 
   return (
     <div className="min-h-screen flex items-center justify-center px-5 bg-background">
       <div className="w-full max-w-md rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 p-7 shadow-sm">
-        <h1 className="font-display text-2xl font-bold">Application Activation</h1>
-        <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">Your Cloud Kitchen license is not currently active. Purchase or renew the application in the Cutting Edge Marketplace, generate an activation code, and enter it below.</p>
+        <h1 className="font-display text-2xl font-bold">
+          {graceExpired ? "Offline Grace Period Expired" : licenseExpired ? "License Expired" : "Application Activation"}
+        </h1>
+        <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">
+          {graceExpired
+            ? "Cloud Kitchen could not validate this license with the Cutting Edge Marketplace within the allowed offline period. Connect this computer to the internet to validate the license and continue."
+            : licenseExpired
+              ? "Your Cloud Kitchen trial or license has expired. Connect this computer to the internet and activate the application with a valid activation code."
+              : "Your Cloud Kitchen license is not currently active. Purchase or renew the application in the Cutting Edge Marketplace, generate an activation code, and enter it below."}
+        </p>
         <input value={code} onChange={e => setCode(e.target.value.replace(/[^a-z0-9]/gi, "").slice(0,10).toUpperCase())} placeholder="10-character activation code" maxLength={10} className="mt-5 w-full h-11 rounded-xl border border-stone-300 dark:border-stone-600 bg-transparent px-3 font-mono tracking-widest uppercase" />
         <button type="button" disabled={busy || code.length !== 10} onClick={activate} className="mt-3 w-full h-11 rounded-xl bg-primary text-white font-medium disabled:opacity-50">{busy ? "Activating..." : "Activate Application"}</button>
         {license?.offline && <p className="mt-3 text-xs text-amber-700">The Marketplace could not be reached. Connect this computer to the internet and try again.</p>}
