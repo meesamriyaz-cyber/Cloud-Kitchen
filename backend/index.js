@@ -283,7 +283,7 @@ async function nextOrderNo() {
 }
 
 const app = express();
-const corsOrigins = (process.env.CORS_ORIGINS || (NODE_ENV === 'production' ? '' : 'http://localhost:process.env.PORT, http://localhost:3000, http://localhost:3001'))
+const corsOrigins = (process.env.CORS_ORIGINS || (NODE_ENV === 'production' ? 'https://cloud-kitchen.cuttingedge-enterprises.in/' : 'http://localhost:process.env.PORT, http://localhost:3000, http://localhost:3001'))
   .split(',')
   .map(v => v.trim())
   .filter(Boolean);
