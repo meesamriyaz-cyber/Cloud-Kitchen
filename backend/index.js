@@ -15,6 +15,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
+const APP_MODE = process.env.APP_MODE || 'production';
+const IS_DEMO = APP_MODE === 'demo';
 const PORT = parseInt(process.env.PORT || '8002', 10);
 const MONGO_URL = process.env.RESTAURANT_APP_MONGO_URI || process.env.MONGO_URI;
 let DB_NAME = process.env.DB_NAME || '';
