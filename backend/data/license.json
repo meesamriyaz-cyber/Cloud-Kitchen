@@ -1,0 +1,26 @@
+{
+  "productId": "6a8012f3d2f0863ed722f468",
+  "deviceId": "ck_d33de0eb-2f4c-4073-9f03-78ea26b290ef",
+  "deviceSecret": "d8d775e47ea676056a6a158edafbbf043bf0a64959310d89673a5edcb6b29eae",
+  "deviceSecretHash": "ed17b80115cbfd61a60b5f3daddb1a0ff52b3fe1ef7ce95832a798b659d6d892",
+  "status": "active",
+  "trial": {
+    "startedAt": "2026-09-05T06:19:20.873Z",
+    "expiresAt": "2026-09-12T06:19:20.873Z",
+    "daysRemaining": 0
+  },
+  "license": {
+    "status": "active",
+    "expiresAt": null,
+    "activatedAt": "2026-09-06T01:46:24.011Z"
+  },
+  "activatedAt": "2026-09-10T11:21:52.120Z",
+  "lastValidatedAt": "2026-09-15T13:19:56.844Z",
+  "lastServerTime": "2026-09-15T13:19:55.779Z",
+  "version": 2,
+  "integrity": {
+    "algorithm": "HMAC-SHA256",
+    "signature": "aa70596533305637a286ef641472498e9621f81e146a44be38d95f69b16a265b",
+    "signedAt": "2026-09-15T13:19:56.848Z"
+  }
+}

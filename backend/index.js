@@ -283,7 +283,7 @@ async function nextOrderNo() {
 }
 
 const app = express();
-const corsOrigins = (process.env.CORS_ORIGINS || (NODE_ENV === 'production' ? '' : 'http://localhost:3000'))
+const corsOrigins = (process.env.CORS_ORIGINS || (NODE_ENV === 'production' ? '' : 'http://localhost:process.env.PORT, http://localhost:3000, http://localhost:3001'))
   .split(',')
   .map(v => v.trim())
   .filter(Boolean);
