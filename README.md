@@ -35,11 +35,14 @@ A 100% pure MERN (MongoDB, Express, React, Node.js) restaurant ordering, POS, an
    curl -X POST http://localhost:8002/api/seed
    ```
 
+<<<<<<< HEAD
    Seeded accounts:
    - Admin: `admin@restaurant.local` / `Admin@123`
    - Salesman/POS: `salesman@restaurant.local` / `Salesman@123`
    - Customer: `customer@restaurant.local` / `Customer@123`
 
+=======
+>>>>>>> bbd20f1d5b957523f0e5efd682dffa11d85213c7
 ## MongoDB Notes
 
 - The backend reads MongoDB from `RESTAURANT_APP_MONGO_URI` or `MONGO_URI` in `backend/.env`.
@@ -49,13 +52,21 @@ A 100% pure MERN (MongoDB, Express, React, Node.js) restaurant ordering, POS, an
 ## Run from VSCode
 
 1. Open the project in VSCode
+<<<<<<< HEAD
 2. Press `Ctrl+Shift+B` and select the fullstack dev task
+=======
+2. Press `Ctrl+Shift+B` and select **"Start Cloud Kitchen (Dev)"**
+>>>>>>> bbd20f1d5b957523f0e5efd682dffa11d85213c7
 3. Or open the **Run and Debug** panel and select **"Debug Fullstack"**
 
 ## Project Structure
 
 ```
+<<<<<<< HEAD
 restaurant-ordering-app/
+=======
+cloud-kitchen/
+>>>>>>> bbd20f1d5b957523f0e5efd682dffa11d85213c7
   backend/          # Express + MongoDB API (ES Modules)
     index.js        # Main server file
     package.json    # Backend dependencies
