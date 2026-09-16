@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon --ignore data/ --ignore .env index.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -18,7 +18,6 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.5.1",
     "multer": "^2.2.0",
-    "multer-storage-cloudinary": "^4.0.0",
     "razorpay": "^2.9.4"
   },
   "devDependencies": {

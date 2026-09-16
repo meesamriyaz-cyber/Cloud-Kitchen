@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { ChefHat, Database, Loader2, Store, UserRound } from "lucide-react";
+import { CheckCircle2, ChefHat, Database, Eye, EyeOff, KeyRound, Loader2, Store, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,6 +36,8 @@ const initialForm = {
   gst: "",
   fssai: "",
   upi_id: "",
+  mongo_url: "",
+  activation_code: "",
   db_name: "restaurant_app",
   admin_name: "",
   admin_email: "",
@@ -45,12 +48,17 @@ const initialForm = {
 export default function Setup() {
   const navigate = useNavigate();
   const { applySession } = useAuth();
-  const { initializeSetup, status } = useBootstrap();
+  const { initializeSetup, testDatabase, status } = useBootstrap();
   const { refreshFirm } = useFirm();
   const [form, setForm] = useState(initialForm);
   const [seedInventory, setSeedInventory] = useState(true);
   const [autoDbName, setAutoDbName] = useState(true);
+  const [showMongoUrl, setShowMongoUrl] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionTested, setConnectionTested] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [activatingLicense, setActivatingLicense] = useState(false);
+  const [licenseActivated, setLicenseActivated] = useState(false);
 
   useEffect(() => {
     if (autoDbName) {
@@ -61,12 +69,54 @@ export default function Setup() {
   const update = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
     if (field === "db_name") setAutoDbName(false);
+    if (field === "mongo_url" || field === "db_name") setConnectionTested(false);
   };
 
+  const testConnection = async () => {
+    if (!form.mongo_url.trim()) {
+      toast.error("Enter the MongoDB connection URL first");
+      return;
+    }
+    if (!form.db_name.trim()) {
+      toast.error("Enter a database name first");
+      return;
+    }
+
+    setTestingConnection(true);
+    setConnectionTested(false);
+    try {
+      await testDatabase({ mongo_url: form.mongo_url.trim(), db_name: form.db_name.trim() });
+      setConnectionTested(true);
+      toast.success("MongoDB connection successful");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Could not connect to MongoDB");
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  const activateLicense = async () => {
+    const code = form.activation_code.trim().toUpperCase();
+    if (!code) { toast.error("Enter the activation code from Cutting Edge Marketplace"); return; }
+    setActivatingLicense(true);
+    try {
+      await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/license/activate`, { code });
+      setLicenseActivated(true);
+      toast.success("Application activated");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Activation failed");
+    } finally {
+      setActivatingLicense(false);
+    }
+  };
   const submit = async (event) => {
     event.preventDefault();
-    if (!status?.mongo_url_configured) {
-      toast.error("MongoDB URL is missing in backend/.env");
+    if (!licenseActivated) {
+      toast.error("Activate the application before initialization");
+      return;
+    }
+    if (!form.mongo_url.trim()) {
+      toast.error("MongoDB connection URL is required");
       return;
     }
     if (form.admin_password !== form.confirm_password) {
@@ -77,7 +127,8 @@ export default function Setup() {
     setSaving(true);
     try {
       const result = await initializeSetup({
-        db_name: form.db_name,
+        mongo_url: form.mongo_url.trim(),
+        db_name: form.db_name.trim(),
         seed_inventory: seedInventory,
         firm: {
           name: form.name,
@@ -120,17 +171,21 @@ export default function Setup() {
               <ChefHat size={13} /> First-run setup
             </div>
             <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mt-4">Initialize Restaurant</h1>
-            <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Create the restaurant profile, database, admin login, and starter inventory.</p>
+            <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Create the restaurant profile, connect its database, admin login, and starter inventory.</p>
           </div>
-          <Button type="submit" disabled={saving} className="rounded-full bg-primary hover:opacity-95 text-white">
+          <Button type="submit" disabled={saving || testingConnection} className="rounded-full bg-primary hover:opacity-95 text-white">
             {saving ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
             {saving ? "Initializing..." : "Initialize App"}
           </Button>
         </div>
 
-        {!status?.mongo_url_configured && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            Add `RESTAURANT_APP_MONGO_URI` or `MONGO_URI` to `backend/.env`, then restart the app.
+        {status?.mongo_url_configured && status?.database === "connected" ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            A MongoDB connection is already configured for this installation.
+          </div>
+        ) : (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Enter the restaurant's MongoDB connection below. The connection URL is handled by the backend and is never returned to the customer-facing React application.
           </div>
         )}
 
@@ -192,12 +247,55 @@ export default function Setup() {
           </div>
         </section>
 
+        <section className="soft-panel p-5 md:p-6 border-primary/20 bg-primary/5">
+          <h2 className="font-display text-xl font-semibold flex items-center gap-2"><KeyRound size={18} /> Application Activation</h2>
+          <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">Generate an activation code from your Cutting Edge Marketplace account and enter it here.</p>
+          <div className="mt-5 flex flex-col sm:flex-row gap-3">
+            <Input value={form.activation_code} onChange={e => { setLicenseActivated(false); update("activation_code", e.target.value); }} placeholder="10-character activation code" maxLength={10} className="h-11 rounded-xl font-mono tracking-widest uppercase" />
+            <Button type="button" disabled={activatingLicense || saving || licenseActivated} onClick={activateLicense} className="rounded-xl">
+              {activatingLicense ? <Loader2 size={16} className="mr-2 animate-spin" /> : <KeyRound size={16} className="mr-2" />}
+              {licenseActivated ? "Activated" : activatingLicense ? "Activating..." : "Activate"}
+            </Button>
+          </div>
+          {licenseActivated && <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 size={16} /> License verified for this device</p>}
+        </section>
         <section className="grid gap-5 md:grid-cols-2">
           <div className="soft-panel p-5 md:p-6">
             <h2 className="font-display text-xl font-semibold flex items-center gap-2"><Database size={18} /> Database</h2>
-            <div className="mt-5">
-              <Label>Database name</Label>
-              <Input required value={form.db_name} onChange={e => update("db_name", e.target.value)} className="mt-1 h-11 rounded-xl font-mono" />
+            <div className="mt-5 space-y-4">
+              <div>
+                <Label>MongoDB connection URL</Label>
+                <div className="relative mt-1">
+                  <Input
+                    required
+                    type={showMongoUrl ? "text" : "password"}
+                    value={form.mongo_url}
+                    onChange={e => update("mongo_url", e.target.value)}
+                    placeholder="mongodb+srv://username:password@cluster.mongodb.net/"
+                    autoComplete="off"
+                    className="h-11 rounded-xl pr-11 font-mono text-sm"
+                  />
+                  <button type="button" onClick={() => setShowMongoUrl(value => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-800" aria-label={showMongoUrl ? "Hide MongoDB URL" : "Show MongoDB URL"}>
+                    {showMongoUrl ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-1.5">Use your MongoDB Atlas or self-hosted MongoDB connection string. Keep the credentials private.</p>
+              </div>
+              <div>
+                <Label>Database name</Label>
+                <Input required value={form.db_name} onChange={e => update("db_name", e.target.value)} className="mt-1 h-11 rounded-xl font-mono" />
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <Button type="button" variant="outline" disabled={testingConnection || saving} onClick={testConnection} className="rounded-xl">
+                  {testingConnection ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Database size={16} className="mr-2" />}
+                  {testingConnection ? "Testing..." : "Test Connection"}
+                </Button>
+                {connectionTested && (
+                  <span className="inline-flex items-center gap-1.5 text-sm text-emerald-700">
+                    <CheckCircle2 size={16} /> Connection verified
+                  </span>
+                )}
+              </div>
             </div>
             <label className="mt-4 flex items-start gap-3 rounded-xl border border-stone-200 dark:border-stone-700 p-3 text-sm">
               <Checkbox checked={seedInventory} onCheckedChange={(checked) => setSeedInventory(Boolean(checked))} />
