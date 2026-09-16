@@ -15,12 +15,12 @@
     "activatedAt": "2026-09-06T01:46:24.011Z"
   },
   "activatedAt": "2026-09-10T11:21:52.120Z",
-  "lastValidatedAt": "2026-09-15T13:19:56.844Z",
-  "lastServerTime": "2026-09-15T13:19:55.779Z",
+  "lastValidatedAt": "2026-09-16T10:44:26.371Z",
+  "lastServerTime": "2026-09-16T10:44:25.470Z",
   "version": 2,
   "integrity": {
     "algorithm": "HMAC-SHA256",
-    "signature": "aa70596533305637a286ef641472498e9621f81e146a44be38d95f69b16a265b",
-    "signedAt": "2026-09-15T13:19:56.848Z"
+    "signature": "797bfe5f063dacacafb0535a14ad964443b8950e9baa4aefb2da649b259a2499",
+    "signedAt": "2026-09-16T10:44:26.375Z"
   }
 }
