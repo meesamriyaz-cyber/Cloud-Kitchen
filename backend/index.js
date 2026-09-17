@@ -1517,7 +1517,7 @@ app.use((err, _req, res, _next) => {
 
 function startServer(port) {
   const server = app.listen(port, '127.0.0.1', () => {
-    console.log(`[express] listening on 127.0.0.1:${port}`);
+    console.log(`[express] listening on 0.0.0.0:${port}`);
   });
   server.on('error', (e) => {
     if (e.code === 'EADDRINUSE') {
