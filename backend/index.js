@@ -288,7 +288,7 @@ async function nextOrderNo() {
 }
 
 const app = express();
-const corsOrigins = (process.env.CORS_ORIGINS || (NODE_ENV === 'production' ? '' : 'http://localhost:3000'))
+const corsOrigins = (process.env.CORS_ORIGINS || (NODE_ENV === 'production' ? 'https://cloud-kitchen.cuttingedge-enterprises.in' : 'http://localhost:3000'))
   .split(',')
   .map(v => v.trim())
   .filter(Boolean);
