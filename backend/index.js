@@ -13,21 +13,12 @@ import multer from 'multer';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
+import { resetDemoData } from "./demoReset.js";
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const APP_MODE = process.env.APP_MODE || 'production';
 const IS_DEMO = APP_MODE === 'demo';
-app.get('/api/demo/status', (_req, res) => {
-  if (!IS_DEMO) {
-    return res.status(404).json({ detail: 'Not found' });
-  }
+const DEMO_RESET_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
-  return res.json({
-    demo: true,
-    app: 'Cloud Kitchen',
-    mode: 'demo',
-  });
-});
 const PORT = parseInt(process.env.PORT || '8002', 10);
 const MONGO_URL = process.env.RESTAURANT_APP_MONGO_URI || process.env.MONGO_URI;
 let DB_NAME = process.env.DB_NAME || '';
@@ -279,6 +270,8 @@ const FirmSettingSchema = new mongoose.Schema({
   currency: { type: String, default: 'INR' },
   theme_color: String,
   setup_complete: { type: Boolean, default: false },
+  demo_last_reset_at: { type: Date, default: null },
+  demo_next_reset_at: { type: Date, default: null },
 }, { timestamps: true, versionKey: false });
 
 const User = mongoose.model('User', UserSchema);
@@ -316,7 +309,157 @@ const BOOTSTRAP_PATHS = new Set([
   '/api/bootstrap/status',
   '/api/bootstrap/initialize',
 ]);
+app.get('/api/demo/status', async (_req, res) => {
+  if (!IS_DEMO) {
+    return res.status(404).json({ detail: 'Not found' });
+  }
 
+  return res.json(await getDemoStatus());
+});
+app.post('/api/demo/initialize', async (_req, res) => {
+  if (!IS_DEMO) {
+    return res.status(404).json({ detail: 'Not found' });
+  }
+
+  if (!MONGO_URL || !DB_NAME) {
+    throw httpError(500, 'Demo MongoDB is not configured');
+  }
+
+  if (!mongoConnected) {
+    const connected = await connectMongo(1000, 10);
+    if (!connected) {
+      throw httpError(503, 'Could not connect to the demo MongoDB');
+    }
+  }
+
+  const currentStatus = await getDemoStatus();
+
+  if (currentStatus.setup_complete) {
+    return res.json({
+      ok: true,
+      already_initialized: true,
+      ...currentStatus,
+    });
+  }
+  
+
+  const firm = await FirmSetting.findOneAndUpdate(
+    { key: 'primary' },
+    {
+      $set: {
+        ...firmPayload({
+          name: 'Cloud Kitchen Demo Restaurant',
+          short_name: 'Cloud Kitchen Demo',
+          business_type: 'Restaurant',
+          tagline: 'Explore Cloud Kitchen',
+          address: 'Demo Restaurant',
+          city: 'Srinagar',
+          state: 'Jammu & Kashmir',
+          phone: '',
+          email: '',
+          website: '',
+          gst: '',
+          fssai: '',
+          upi_id: '',
+        }),
+        key: 'primary',
+        setup_complete: true,
+        demo_next_reset_at: new Date(
+        Date.now() + DEMO_RESET_INTERVAL_MS
+      ),
+      },
+    },
+    { new: true, upsert: true }
+  );
+
+  const demoAdminEmail = 'demo@cloudkitchen.local';
+
+  let admin = await User.findOne({ email: demoAdminEmail });
+
+  if (!admin) {
+    const password = await bcrypt.hash(randomUUID(), 10);
+
+    admin = await User.create({
+      name: 'Demo Administrator',
+      email: demoAdminEmail,
+      password,
+      role: 'admin',
+      provider: 'local',
+    });
+  } else if (admin.role !== 'admin') {
+    admin.role = 'admin';
+    await admin.save();
+  }
+
+  const inventory = await seedStarterInventory();
+
+  return res.json({
+    ok: true,
+    already_initialized: false,
+    demo: true,
+    mode: 'demo',
+    db_name: DB_NAME,
+    firm: normalizeFirm(firm.toObject()),
+    inventory,
+    token: signJwt(admin.user_id),
+    user: publicUser(admin),
+  });
+});
+app.post('/api/demo/admin-login', async (_req, res) => {
+  if (!IS_DEMO) {
+    return res.status(404).json({ detail: 'Not found' });
+  }
+
+  if (!mongoConnected) {
+    const connected = await connectMongo(1000, 10);
+    if (!connected) {
+      return res.status(503).json({ detail: 'Demo database is unavailable' });
+    }
+  }
+
+  const admin = await User.findOne({
+    email: 'demo@cloudkitchen.local',
+    role: 'admin',
+  });
+
+  if (!admin) {
+    return res.status(404).json({
+      detail: 'Demo administrator has not been initialized',
+    });
+  }
+
+  return res.json({
+    ok: true,
+    demo: true,
+    mode: 'demo',
+    token: signJwt(admin.user_id),
+    user: publicUser(admin),
+  });
+});
+
+app.post('/api/demo/reset', async (_req, res) => {
+  if (!IS_DEMO) {
+    return res.status(404).json({ detail: 'Not found' });
+  }
+
+  if (!mongoConnected) {
+    const connected = await connectMongo(1000, 10);
+
+    if (!connected) {
+      return res.status(503).json({
+        detail: 'Demo database is unavailable',
+      });
+    }
+  }
+
+  const result = await resetDemoData({
+    User,
+    Order,
+    Counter,
+  });
+
+  return res.json(result);
+});
 app.use((req, res, next) => {
   if (!mongoConnected && !BOOTSTRAP_PATHS.has(req.path)) {
     return res.status(503).json({ detail: 'Database unavailable - please start MongoDB' });
@@ -530,7 +673,121 @@ async function getBootstrapStatus() {
     needs_setup: !setupComplete,
   };
 }
+async function getDemoStatus() {
+  const base = {
+    demo: true,
+    app: 'Cloud Kitchen',
+    mode: APP_MODE,
+    database: mongoConnected ? 'connected' : 'disconnected',
+    setup_complete: false,
+    has_admin: false,
+    needs_setup: true,
+    firm: normalizeFirm({}),
+  };
 
+  if (!mongoConnected) return base;
+
+  const [settings, adminCount] = await Promise.all([
+    FirmSetting.findOne({ key: 'primary' }).lean(),
+    User.countDocuments({ role: 'admin' }),
+  ]);
+
+  const firm = normalizeFirm(settings || {});
+  const setupComplete = Boolean(firm.setup_complete && adminCount > 0);
+
+  return {
+    ...base,
+    firm,
+    has_admin: adminCount > 0,
+    setup_complete: setupComplete,
+    needs_setup: !setupComplete,
+  };
+}
+
+
+async function runScheduledDemoReset() {
+  if (!IS_DEMO) return;
+
+  try {
+    if (!mongoConnected) {
+      const connected = await connectMongo(1000, 10);
+
+      if (!connected) {
+        console.error('[Demo Reset] Demo database unavailable');
+        return;
+      }
+    }
+
+    const now = new Date();
+  console.log('[Demo Reset] Now:', now.toISOString());
+    const settings = await FirmSetting.findOne({ key: 'primary' });
+
+    if (!settings) {
+      console.log('[Demo Reset] Demo restaurant is not initialized yet');
+      return;
+    }
+
+    // First run: establish the 7-day reset schedule.
+    if (!settings.demo_next_reset_at) {
+      settings.demo_next_reset_at = new Date(
+        now.getTime() + DEMO_RESET_INTERVAL_MS
+      );
+
+      await settings.save();
+
+      console.log(
+        '[Demo Reset] First reset scheduled for:',
+        settings.demo_next_reset_at.toISOString()
+      );
+
+      return;
+    }
+
+    // Not due yet.
+   if (now < settings.demo_next_reset_at) {
+  console.log(
+    '[Demo Reset] Next reset scheduled for:',
+    settings.demo_next_reset_at.toISOString()
+  );
+  return;
+}
+
+    console.log('[Demo Reset] Reset is due. Starting...');
+
+    const result = await resetDemoData({
+      User,
+      Order,
+      Counter,
+    });
+
+    const resetAt = new Date();
+    const nextResetAt = new Date(
+      resetAt.getTime() + DEMO_RESET_INTERVAL_MS
+    );
+
+    settings.demo_last_reset_at = resetAt;
+    settings.demo_next_reset_at = nextResetAt;
+
+    await settings.save();
+
+    console.log('[Demo Reset] Completed:', result);
+    console.log(
+      '[Demo Reset] Next reset:',
+      nextResetAt.toISOString()
+    );
+  } catch (err) {
+    console.error('[Demo Reset] Failed:', err);
+  }
+}
+if (IS_DEMO) {
+  // Check shortly after startup.
+  setTimeout(runScheduledDemoReset, 5000);
+
+  // Check periodically so a Render restart does not reset the schedule.
+  setInterval(runScheduledDemoReset, 60 * 60 * 1000);
+
+  console.log('[Demo Reset] 7-day persistent reset scheduler enabled.');
+}
 app.get('/api/health', (_req, res) => res.json({
   ok: true,
   stack: 'MERN',
@@ -1255,6 +1512,8 @@ app.use((err, _req, res, _next) => {
   const status = err.statusCode && err.statusCode >= 400 && err.statusCode < 600 ? err.statusCode : 500;
   res.status(status).json({ detail: err.message || 'Server error' });
 });
+
+
 
 function startServer(port) {
   const server = app.listen(port, '127.0.0.1', () => {
