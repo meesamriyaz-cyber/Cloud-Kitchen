@@ -78,8 +78,7 @@ function AppRouter() {
         <Route path="/admin/pos" element={<ProtectedRoute roles={["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
       </Route>
       <Route path="/demo-admin" element={<DemoAdminLogin />} />
-      <Route path="/*" element={<Home />} />
-
+       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
