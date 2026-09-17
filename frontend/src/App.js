@@ -5,7 +5,7 @@ import { BootstrapProvider, useBootstrap } from "@/context/BootstrapContext";
 import { CartProvider } from "@/context/CartContext";
 import { FirmProvider } from "@/context/FirmContext";
 import { Toaster } from "sonner";
-
+import DemoAdminLogin from "@/pages/DemoAdminLogin";
 import Home from "@/pages/Home";
 import Menu from "@/pages/Menu";
 import Checkout from "@/pages/Checkout";
@@ -77,6 +77,7 @@ function AppRouter() {
         <Route path="/pos" element={<ProtectedRoute roles={["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
         <Route path="/admin/pos" element={<ProtectedRoute roles={["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
       </Route>
+      <Route path="/demo-admin" element={<DemoAdminLogin />} />
     </Routes>
   );
 }

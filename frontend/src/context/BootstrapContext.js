@@ -2,6 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import axios from "axios";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const APP_MODE = process.env.REACT_APP_APP_MODE || "production";
+const IS_DEMO = APP_MODE === "demo";
 const BootstrapCtx = createContext({
   status: null,
   loading: true,
@@ -16,34 +18,54 @@ export function BootstrapProvider({ children }) {
   const [error, setError] = useState("");
 
   const refreshBootstrap = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(`${API}/bootstrap/status`);
-      setStatus(res.data);
-      setError("");
-      return res.data;
-    } catch (err) {
-      setError(err.response?.data?.detail || "Unable to check first-run setup status.");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  setLoading(true);
+
+  try {
+    const endpoint = IS_DEMO
+      ? `${API}/demo/status`
+      : `${API}/bootstrap/status`;
+
+    const res = await axios.get(endpoint);
+
+    setStatus(res.data);
+    setError("");
+
+    return res.data;
+  } catch (err) {
+    setError(
+      err.response?.data?.detail ||
+      "Unable to check first-run setup status."
+    );
+    return null;
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   const initializeSetup = useCallback(async (payload) => {
-    const res = await axios.post(`${API}/bootstrap/initialize`, payload);
-    setStatus({
-      mongo_url_configured: true,
-      db_name: res.data.db_name,
-      database: "connected",
-      setup_complete: true,
-      has_admin: true,
-      needs_setup: false,
-      firm: res.data.firm,
-    });
-    setError("");
-    return res.data;
-  }, []);
+  const endpoint = IS_DEMO
+    ? `${API}/demo/initialize`
+    : `${API}/bootstrap/initialize`;
+
+  const res = IS_DEMO
+    ? await axios.post(endpoint)
+    : await axios.post(endpoint, payload);
+
+  setStatus({
+    ...res.data,
+    setup_complete: true,
+    has_admin: true,
+    needs_setup: false,
+    database: "connected",
+    firm: res.data.firm,
+  });
+
+  setError("");
+
+  return res.data;
+}, []);
+
+
 
   useEffect(() => {
     refreshBootstrap();

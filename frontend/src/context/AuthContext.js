@@ -51,6 +51,14 @@ export function AuthProvider({ children }) {
     return res.data.user;
   };
 
+  const demoAdminLogin = async () => {
+  const res = await axios.post(`${API}/demo/admin-login`);
+
+  applySession(res.data.token, res.data.user);
+
+  return res.data.user;
+};
+
   const logout = async () => {
     try { await axios.post(`${API}/auth/logout`, {}, { withCredentials: true }); } catch {}
     localStorage.removeItem(TOKEN_KEY);
@@ -60,8 +68,19 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthCtx.Provider value={{ user, loading, token, login, register, logout, checkAuth, applySession }}>
-      {children}
+<AuthCtx.Provider
+  value={{
+    user,
+    loading,
+    token,
+    login,
+    register,
+    demoAdminLogin,
+    logout,
+    checkAuth,
+    applySession,
+  }}
+>      {children}
     </AuthCtx.Provider>
   );
 }
