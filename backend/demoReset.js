@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { DEMO_PERSONA_EMAILS } from "./demoAdmin.js";
 
 export async function resetDemoData({
   User,
@@ -11,6 +11,7 @@ export async function resetDemoData({
 
   const usersResult = await User.deleteMany({
     role: "customer",
+    email: { $nin: DEMO_PERSONA_EMAILS },
   });
 
   return {
