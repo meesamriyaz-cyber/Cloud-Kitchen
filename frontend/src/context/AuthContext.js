@@ -94,7 +94,6 @@ export function AuthProvider({ children }) {
           });
           applySession(session.token, res.data);
           sessionStorage.removeItem(DEMO_ORIGINAL_SESSION_KEY);
-    sessionStorage.removeItem(DEMO_SESSION_ID_KEY);
           return res.data;
         } catch {
           sessionStorage.removeItem(DEMO_ORIGINAL_SESSION_KEY);
@@ -114,6 +113,7 @@ export function AuthProvider({ children }) {
     try { await axios.post(`${API}/auth/logout`, {}, { withCredentials: true }); } catch {}
     localStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(DEMO_ORIGINAL_SESSION_KEY);
+    sessionStorage.removeItem(DEMO_SESSION_ID_KEY);
     applyAuthHeader(null);
     setToken(null);
     setUser(null);
