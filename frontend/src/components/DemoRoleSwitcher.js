@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { X, UserRound, MonitorCog, ChefHat, ShieldCheck, ArrowRight } from "lucide-react";
 
@@ -37,6 +38,7 @@ const ROLES = [
 
 export default function DemoRoleSwitcher({ open, onClose }) {
   const { user, switchDemoRole } = useAuth();
+  const navigate = useNavigate();
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState("");
 
@@ -53,7 +55,15 @@ export default function DemoRoleSwitcher({ open, onClose }) {
 
     try {
       await switchDemoRole(role);
+      const landing = {
+        customer: "/",
+        salesman: "/pos",
+        chef: "/chef",
+        staff: "/staff",
+        admin: "/admin",
+      }[role] || "/";
       onClose();
+      navigate(landing, { replace: true });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(
