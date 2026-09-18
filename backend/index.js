@@ -407,7 +407,7 @@ app.post('/api/demo/admin-login', async (_req, res) => {
     ok: true,
     demo: true,
     mode: 'demo',
-    token: signJwt(admin.user_id),
+    token: signJwt(admin.user_id, { demo: true }),
     user: publicUser(admin),
   });
 });
