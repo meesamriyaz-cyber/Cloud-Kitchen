@@ -31,14 +31,13 @@ export default function ChefOrders() {
     try {
       const params = {};
       if (statusFilter !== "all") params.status = statusFilter;
-      const [posRes, adminRes] = await Promise.all([
-        axios.get(`${API}/pos/orders`, { params }),
-        axios.get(`${API}/admin/orders`, { params }),
-      ]);
-      const combined = [...posRes.data, ...adminRes.data];
-      const unique = Array.from(new Map(combined.map(o => [o.id, o])).values());
-      unique.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      setOrders(unique);
+      // Chef needs the operational order queue, not POS permissions.
+      // Keeping this on the admin-orders read endpoint avoids coupling the
+      // kitchen role to counter-sale access.
+      const res = await axios.get(`${API}/admin/orders`, { params });
+      const orders = res.data || [];
+      orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setOrders(orders);
     } catch (err) {
       setError(err.response?.data?.detail || "Unable to load orders.");
     } finally {
