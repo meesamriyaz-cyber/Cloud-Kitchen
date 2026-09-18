@@ -554,7 +554,10 @@ function orderStatusAccess(req, res, next) {
 
 function orderViewAccess(req, res, next) {
   authRequired(req, res, () => {
-    if (!['admin', 'staff', 'salesman', 'chef'].includes(req.user.role)) return res.status(403).json({ detail: 'Order view access only' });
+    const allowed = IS_DEMO
+      ? ['admin', 'staff', 'chef'].includes(req.user.role)
+      : ['admin', 'staff', 'salesman', 'chef'].includes(req.user.role);
+    if (!allowed) return res.status(403).json({ detail: 'Order view access only' });
     next();
   });
 }
