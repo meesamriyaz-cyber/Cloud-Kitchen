@@ -13,8 +13,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 
+const APP_MODE = process.env.REACT_APP_APP_MODE || "production";
+const IS_DEMO = APP_MODE === "demo";
+
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, demoAdminLogin } = useAuth();
   const { count, setOpen } = useCart();
   const { firm } = useFirm();
   const navigate = useNavigate();
@@ -23,6 +26,16 @@ export default function Layout() {
   const isSalesman = user && user.role === "salesman";
   const isChef = user && user.role === "chef";
   const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/pos") || location.pathname.startsWith("/chef");
+
+  const handleEnterDemoAdmin = async () => {
+    try {
+      await demoAdminLogin();
+      navigate("/admin", { replace: true });
+    } catch (err) {
+      // Keep the customer session intact if Demo admin entry fails.
+      console.error("Unable to enter Demo administrator area:", err);
+    }
+  };
 
   const nav = [
     { to: "/", label: "Home", icon: Home },
@@ -98,7 +111,7 @@ export default function Layout() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-              <button className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 transition-colors p-2.5" data-testid="user-menu-button" aria-label="Open user menu">
+                  <button className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 transition-colors p-2.5" data-testid="user-menu-button" aria-label="Open user menu">
                     <User size={18} className="text-stone-600 dark:text-stone-300" />
                   </button>
                 </DropdownMenuTrigger>
@@ -110,6 +123,11 @@ export default function Layout() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>
                   {isStaff && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
+                  {IS_DEMO && !isStaff && (
+                    <DropdownMenuItem onClick={handleEnterDemoAdmin} data-testid="menu-demo-admin">
+                      <LayoutDashboard size={14} className="mr-2" /> Enter Admin Demo
+                    </DropdownMenuItem>
+                  )}
                   {(isStaff || isSalesman || isChef) && (
                     <DropdownMenuItem onClick={() => navigate("/pos")} data-testid="menu-pos">
                       <MonitorCog size={14} className="mr-2" /> POS
