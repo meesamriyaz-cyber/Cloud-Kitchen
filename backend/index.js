@@ -524,7 +524,7 @@ function adminOnly(req, res, next) {
 function posAccess(req, res, next) {
   authRequired(req, res, () => {
     const allowed = IS_DEMO
-      ? req.user.role === 'staff'
+      ? ['admin', 'staff'].includes(req.user.role)
       : ['admin', 'staff', 'salesman'].includes(req.user.role);
     if (!allowed) return res.status(403).json({ detail: 'POS access only' });
     next();
@@ -1378,7 +1378,7 @@ app.post('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), (r
   res.json({ ok: true });
 });
 
-app.get('/api/pos/orders', kitchenAccess, async (_req, res) => {
+app.get('/api/pos/orders', posAccess, async (_req, res) => {
   const orders = await Order.find({ channel: 'pos' }).sort({ created_at: -1 }).limit(50).lean();
   res.json(orders);
 });
