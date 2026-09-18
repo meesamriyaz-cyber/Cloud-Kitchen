@@ -28,15 +28,6 @@ const ROLES = [
     description: "Explore settings, menu, users, sales and reports.",
     icon: ShieldCheck,
   },
-    description: "Experience day-to-day restaurant operations.",
-    icon: MonitorCog,
-  },
-  {
-    role: "admin",
-    label: "Administrator",
-    description: "Explore settings, menu, users, sales and reports.",
-    icon: ShieldCheck,
-  },
 ];
 
 export default function DemoRoleSwitcher({ open, onClose }) {
