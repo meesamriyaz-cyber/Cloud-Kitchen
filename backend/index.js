@@ -1378,7 +1378,7 @@ app.post('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), (r
   res.json({ ok: true });
 });
 
-app.get('/api/pos/orders', kitchenAccess, async (_req, res) => {
+app.get('/api/pos/orders', IS_DEMO ? posAccess : kitchenAccess, async (_req, res) => {
   const orders = await Order.find({ channel: 'pos' }).sort({ created_at: -1 }).limit(50).lean();
   res.json(orders);
 });
