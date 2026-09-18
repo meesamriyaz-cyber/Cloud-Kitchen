@@ -8,7 +8,6 @@ export const DEMO_PERSONAS = {
   admin: { email: DEMO_ADMIN_EMAIL, name: DEMO_ADMIN_NAME, role: 'admin' },
   staff: { email: 'demo-staff@cloudkitchen.local', name: 'Demo Staff', role: 'staff' },
   chef: { email: 'demo-chef@cloudkitchen.local', name: 'Demo Chef', role: 'chef' },
-  salesman: { email: 'demo-sales@cloudkitchen.local', name: 'Demo Sales', role: 'salesman' },
 };
 
 export const DEMO_PERSONA_EMAILS = Object.values(DEMO_PERSONAS).map(persona => persona.email);
