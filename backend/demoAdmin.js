@@ -13,6 +13,25 @@ export const DEMO_PERSONAS = {
 
 export const DEMO_PERSONA_EMAILS = Object.values(DEMO_PERSONAS).map(persona => persona.email);
 
+export async function ensureDemoCustomer(User, sessionId) {
+  const safeId = String(sessionId || randomUUID()).trim();
+  const hash = randomUUID().replace(/-/g, '').slice(0, 12) + safeId.replace(/[^a-zA-Z0-9]/g, '').slice(-12);
+  const email = `demo-customer-${hash.toLowerCase()}@cloudkitchen.local`;
+
+  let customer = await User.findOne({ email });
+  if (!customer) {
+    const password = await bcrypt.hash(randomUUID(), 10);
+    customer = await User.create({
+      name: 'Demo Customer',
+      email,
+      password,
+      role: 'customer',
+      provider: 'local',
+    });
+  }
+  return customer;
+}
+
 async function ensurePersona(User, persona) {
   let user = await User.findOne({ email: persona.email });
 
