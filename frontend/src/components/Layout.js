@@ -14,6 +14,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 
+const APP_MODE = process.env.REACT_APP_APP_MODE || "production";
+const IS_DEMO = APP_MODE === "demo";
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const { count, setOpen } = useCart();
