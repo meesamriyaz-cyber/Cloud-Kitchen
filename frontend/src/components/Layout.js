@@ -43,7 +43,7 @@ export default function Layout() {
     ...(isStaff ? [
       { to: "/staff", label: "Staff", icon: LayoutDashboard },
     ] : []),
-    ...(isStaff || isSalesman || isChef ? [
+    ...(isAdmin || isStaff || isSalesman ? [
       { to: "/pos", label: "POS", icon: MonitorCog },
     ] : []),
     ...(isChef ? [
