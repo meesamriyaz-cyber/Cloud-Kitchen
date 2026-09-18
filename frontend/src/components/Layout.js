@@ -23,21 +23,25 @@ export default function Layout() {
   const { firm } = useFirm();
   const navigate = useNavigate();
   const location = useLocation();
-  const isStaff = user && ["admin", "staff"].includes(user.role);
+  const isAdmin = user?.role === "admin";
+  const isStaff = user?.role === "staff";
   const isSalesman = user && user.role === "salesman";
   const isChef = user && user.role === "chef";
-  const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/pos") || location.pathname.startsWith("/chef");
+  const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/staff") || location.pathname.startsWith("/pos") || location.pathname.startsWith("/chef");
   const [demoRoleSwitcherOpen, setDemoRoleSwitcherOpen] = React.useState(false);
 
   const nav = [
     { to: "/", label: "Home", icon: Home },
     { to: "/menu", label: "Menu", icon: Utensils },
     ...(user ? [{ to: "/orders", label: "My Orders", icon: ReceiptText }] : []),
-    ...(isStaff ? [
+    ...(isAdmin ? [
       { to: "/admin", label: "Admin", icon: LayoutDashboard },
       { to: "/admin/users", label: "Users", icon: Users },
       { to: "/admin/sales", label: "Sales", icon: TrendingUp },
       { to: "/admin/offers", label: "Offers", icon: Tag },
+    ] : []),
+    ...(isStaff ? [
+      { to: "/staff", label: "Staff", icon: LayoutDashboard },
     ] : []),
     ...(isStaff || isSalesman || isChef ? [
       { to: "/pos", label: "POS", icon: MonitorCog },
@@ -114,7 +118,8 @@ export default function Layout() {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>
-                  {isStaff && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
+                  {isAdmin && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
+                  {isStaff && <DropdownMenuItem onClick={() => navigate("/staff")} data-testid="menu-staff">Staff Dashboard</DropdownMenuItem>}
                   {IS_DEMO && (
                     <DropdownMenuItem onClick={() => setDemoRoleSwitcherOpen(true)} data-testid="menu-demo-role-switcher">
                       <LayoutDashboard size={14} className="mr-2" /> Switch Demo Role
