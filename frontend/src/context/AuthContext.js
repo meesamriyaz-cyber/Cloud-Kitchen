@@ -74,9 +74,19 @@ export function AuthProvider({ children }) {
       }
 
       const session = JSON.parse(saved);
-      applySession(session.token, session.user);
-      sessionStorage.removeItem(DEMO_ORIGINAL_SESSION_KEY);
-      return session.user;
+
+      try {
+        const res = await axios.get(`${API}/auth/me`, {
+          headers: { Authorization: `Bearer ${session.token}` },
+        });
+        const restoredUser = res.data;
+        applySession(session.token, restoredUser);
+        sessionStorage.removeItem(DEMO_ORIGINAL_SESSION_KEY);
+        return restoredUser;
+      } catch {
+        sessionStorage.removeItem(DEMO_ORIGINAL_SESSION_KEY);
+        throw new Error("Your Demo customer session has expired. Please sign in again.");
+      }
     }
 
     const currentToken = localStorage.getItem(TOKEN_KEY);
