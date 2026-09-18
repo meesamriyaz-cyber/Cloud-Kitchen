@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Clock3, ListOrdered, RefreshCw, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { humanStatus, orderCustomer, shortOrderId } from "@/lib/format";
@@ -28,6 +29,22 @@ export default function StaffDashboard() {
   }, []);
 
   const active = orders.filter(order => ["placed", "preparing", "ready", "out_for_delivery"].includes(order.status));
+
+  const staffNextStatus = {
+    ready: "out_for_delivery",
+    out_for_delivery: "delivered",
+  };
+
+  const updateStatus = async (order, nextStatus) => {
+    try {
+      await axios.put(API + "/admin/orders/" + order.id + "/status", { status: nextStatus });
+      toast.success("Order moved to " + humanStatus(nextStatus));
+      await loadOrders();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Unable to update order status.");
+      await loadOrders();
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-5 py-8">
@@ -81,7 +98,19 @@ export default function StaffDashboard() {
                   {order.items?.map(item => `${item.qty}x ${item.name}`).join(", ")}
                 </div>
               </div>
-              <Badge className="shrink-0 border-0 bg-primary text-white capitalize">{humanStatus(order.status)}</Badge>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge className="border-0 bg-primary text-white capitalize">{humanStatus(order.status)}</Badge>
+                {staffNextStatus[order.status] && (
+                  <Button
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => updateStatus(order, staffNextStatus[order.status])}
+                    disabled={loading}
+                  >
+                    Mark {humanStatus(staffNextStatus[order.status])}
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
           {!loading && orders.length === 0 && (
