@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
-import { Clock3, ListOrdered, MonitorCog, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Clock3, ListOrdered, RefreshCw, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { humanStatus, orderCustomer, shortOrderId } from "@/lib/format";
@@ -44,13 +43,10 @@ export default function StaffDashboard() {
             Handle day-to-day orders and restaurant operations without administrator settings.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div>
           <Button variant="outline" className="rounded-full" onClick={loadOrders} disabled={loading}>
             <RefreshCw size={15} className={loading ? "mr-2 animate-spin" : "mr-2"} /> Refresh
           </Button>
-          <Link to="/pos" className="rounded-full bg-primary text-white h-10 px-4 inline-flex items-center gap-2 text-sm font-semibold">
-            <MonitorCog size={15} /> POS
-          </Link>
         </div>
       </div>
 
