@@ -523,14 +523,20 @@ function adminOnly(req, res, next) {
 
 function posAccess(req, res, next) {
   authRequired(req, res, () => {
-    if (!['admin', 'staff', 'salesman'].includes(req.user.role)) return res.status(403).json({ detail: 'POS access only' });
+    const allowed = IS_DEMO
+      ? req.user.role === 'salesman'
+      : ['admin', 'staff', 'salesman'].includes(req.user.role);
+    if (!allowed) return res.status(403).json({ detail: 'POS access only' });
     next();
   });
 }
 
 function kitchenAccess(req, res, next) {
   authRequired(req, res, () => {
-    if (!KITCHEN_ROLES.has(req.user.role)) return res.status(403).json({ detail: 'Kitchen access only' });
+    const allowed = IS_DEMO
+      ? req.user.role === 'chef'
+      : KITCHEN_ROLES.has(req.user.role);
+    if (!allowed) return res.status(403).json({ detail: 'Kitchen access only' });
     next();
   });
 }
