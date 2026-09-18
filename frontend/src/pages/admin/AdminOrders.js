@@ -9,7 +9,17 @@ import { toast } from "sonner";
 import { formatMoney, humanStatus, orderCustomer, orderPhone, shortOrderId } from "@/lib/format";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const APP_MODE = process.env.REACT_APP_APP_MODE || "production";
+const IS_DEMO = APP_MODE === "demo";
 const STATUSES = ["placed", "preparing", "ready", "out_for_delivery", "delivered", "cancelled"];
+const NEXT_STATUSES = {
+  placed: ["preparing", "cancelled"],
+  preparing: ["ready", "cancelled"],
+  ready: ["out_for_delivery", "cancelled"],
+  out_for_delivery: ["delivered", "cancelled"],
+  delivered: [],
+  cancelled: [],
+};
 const colors = {
   placed: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
   preparing: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300",
@@ -73,10 +83,15 @@ export default function AdminOrders() {
       await axios.put(`${API}/admin/orders/${oid}/status`, { status: nextStatus });
       toast.success("Status updated");
       load();
-    } catch {
-      toast.error("Failed to update");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to update");
+      load();
     }
   };
+
+  const getStatusOptions = (currentStatus) => (
+    IS_DEMO ? (NEXT_STATUSES[currentStatus] || []) : STATUSES.filter(s => s !== currentStatus)
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-5 py-8">
