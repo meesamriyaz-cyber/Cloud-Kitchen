@@ -44,12 +44,10 @@ export default function Layout() {
       { to: "/staff", label: "Staff", icon: LayoutDashboard },
       { to: "/pos", label: "POS", icon: MonitorCog },
     ] : []),
-    ...(isAdmin && !IS_DEMO ? [
-      { to: "/admin/pos", label: "POS", icon: MonitorCog },
-    ] : []),
-    ...(!IS_DEMO && isSalesman ? [
+    ...(isAdmin ? [
       { to: "/pos", label: "POS", icon: MonitorCog },
     ] : []),
+    ...(!IS_DEMO && isSalesman ? [
       { to: "/pos", label: "POS", icon: MonitorCog },
     ] : []),
     ...(isChef ? [
