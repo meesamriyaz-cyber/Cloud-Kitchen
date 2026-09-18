@@ -541,6 +541,17 @@ function kitchenAccess(req, res, next) {
   });
 }
 
+function orderStatusAccess(req, res, next) {
+  authRequired(req, res, () => {
+    const allowed = IS_DEMO
+      ? ['admin', 'chef', 'staff'].includes(req.user.role)
+      : KITCHEN_ROLES.has(req.user.role);
+
+    if (!allowed) return res.status(403).json({ detail: 'Order status access only' });
+    next();
+  });
+}
+
 function orderViewAccess(req, res, next) {
   authRequired(req, res, () => {
     if (!['admin', 'staff', 'salesman', 'chef'].includes(req.user.role)) return res.status(403).json({ detail: 'Order view access only' });
@@ -555,23 +566,56 @@ function adminStrict(req, res, next) {
   });
 }
 
-function transitionOrderStatus(order, newStatus) {
+const ORDER_STATUS_ACTORS = {
+  placed: {
+    preparing: new Set(['chef', 'admin']),
+    cancelled: new Set(['admin']),
+  },
+  preparing: {
+    ready: new Set(['chef', 'admin']),
+    cancelled: new Set(['admin']),
+  },
+  ready: {
+    out_for_delivery: new Set(['staff', 'admin']),
+    cancelled: new Set(['admin']),
+  },
+  out_for_delivery: {
+    delivered: new Set(['staff', 'admin']),
+    cancelled: new Set(['admin']),
+  },
+  delivered: {},
+  cancelled: {},
+};
+
+function getAllowedOrderTransitions(order, role) {
+  const transitions = ORDER_STATUS_TRANSITIONS[order?.status] || [];
+  return transitions.filter(nextStatus => ORDER_STATUS_ACTORS[order.status]?.[nextStatus]?.has(role));
+}
+
+function transitionOrderStatus(order, newStatus, role) {
   if (!ORDER_STATUSES.includes(newStatus)) {
     return { ok: false, error: 'Invalid status' };
   }
   if (order.status === newStatus) {
     return { ok: true, error: null };
   }
+
   const allowed = ORDER_STATUS_TRANSITIONS[order.status] || [];
   if (!allowed.includes(newStatus)) {
-    return { ok: false, error: `Cannot transition from ${ORDER_STATUS_LABELS[order.status] || order.status} to ${ORDER_STATUS_LABELS[newStatus] || newStatus}` };
+    return {
+      ok: false,
+      error: `Cannot transition from ${ORDER_STATUS_LABELS[order.status] || order.status} to ${ORDER_STATUS_LABELS[newStatus] || newStatus}`,
+    };
   }
-  order.status = newStatus;
-  if (newStatus === 'delivered' && order.payment_status !== 'paid') {
-    if (['cod', 'cash', 'upi', 'card'].includes(order.payment_method)) {
-      order.payment_status = 'paid';
-    }
+
+  const actors = ORDER_STATUS_ACTORS[order.status]?.[newStatus];
+  if (!actors?.has(role)) {
+    return {
+      ok: false,
+      error: `${role === 'admin' ? 'Admin' : 'This role'} cannot move an order from ${ORDER_STATUS_LABELS[order.status] || order.status} to ${ORDER_STATUS_LABELS[newStatus] || newStatus}`,
+    };
   }
+
   return { ok: true, error: null };
 }
 
@@ -1345,13 +1389,47 @@ app.get('/api/admin/orders', orderViewAccess, async (req, res) => {
   res.json(orders);
 });
 
-app.put('/api/admin/orders/:oid/status', kitchenAccess, async (req, res) => {
-  const order = await Order.findOne({ id: req.params.oid });
+app.get('/api/admin/orders/:oid/status-options', orderStatusAccess, async (req, res) => {
+  const order = await Order.findOne({ id: req.params.oid }).lean();
   if (!order) return res.status(404).json({ detail: 'Not found' });
-  const result = transitionOrderStatus(order, req.body?.status);
-  if (!result.ok) return res.status(400).json({ detail: result.error });
-  await order.save();
-  res.json({ ok: true, status: order.status });
+
+  res.json({
+    status: order.status,
+    allowed_next_statuses: getAllowedOrderTransitions(order, req.user.role),
+  });
+});
+
+app.put('/api/admin/orders/:oid/status', orderStatusAccess, async (req, res) => {
+  const requestedStatus = String(req.body?.status || '').trim().toLowerCase();
+
+  const current = await Order.findOne({ id: req.params.oid }).lean();
+  if (!current) return res.status(404).json({ detail: 'Not found' });
+
+  const validation = transitionOrderStatus(current, requestedStatus, req.user.role);
+  if (!validation.ok) return res.status(400).json({ detail: validation.error });
+
+  const update = { status: requestedStatus };
+  if (
+    requestedStatus === 'delivered' &&
+    current.payment_status !== 'paid' &&
+    ['cod', 'cash', 'upi', 'card'].includes(current.payment_method)
+  ) {
+    update.payment_status = 'paid';
+  }
+
+  const updated = await Order.findOneAndUpdate(
+    { id: req.params.oid, status: current.status },
+    { $set: update },
+    { new: true }
+  );
+
+  if (!updated) {
+    return res.status(409).json({
+      detail: 'Order was updated by another user. Refresh the order and try again.',
+    });
+  }
+
+  res.json({ ok: true, status: updated.status, payment_status: updated.payment_status });
 });
 
 app.get('/api/admin/stats', adminOnly, async (_req, res) => {
