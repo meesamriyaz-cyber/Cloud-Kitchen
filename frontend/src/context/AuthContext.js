@@ -4,6 +4,7 @@ import axios from "axios";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const TOKEN_KEY = "restaurant_app_token";
 const DEMO_ORIGINAL_SESSION_KEY = "cloud_kitchen_demo_original_session";
+const DEMO_SESSION_ID_KEY = "cloud_kitchen_demo_session_id";
 const AuthCtx = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -67,37 +68,44 @@ export function AuthProvider({ children }) {
   };
 
   const switchDemoRole = async (role) => {
+    let sessionId = sessionStorage.getItem(DEMO_SESSION_ID_KEY);
+    if (!sessionId) {
+      sessionId = window.crypto?.randomUUID?.() || `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      sessionStorage.setItem(DEMO_SESSION_ID_KEY, sessionId);
+    }
+
+    if (role !== "customer" && user?.role === "customer") {
+      const currentToken = localStorage.getItem(TOKEN_KEY);
+      if (currentToken) {
+        sessionStorage.setItem(
+          DEMO_ORIGINAL_SESSION_KEY,
+          JSON.stringify({ token: currentToken, user })
+        );
+      }
+    }
+
     if (role === "customer") {
       const saved = sessionStorage.getItem(DEMO_ORIGINAL_SESSION_KEY);
-      if (!saved) {
-        throw new Error("Original Demo customer session is unavailable.");
-      }
-
-      const session = JSON.parse(saved);
-
-      try {
-        const res = await axios.get(`${API}/auth/me`, {
-          headers: { Authorization: `Bearer ${session.token}` },
-        });
-        const restoredUser = res.data;
-        applySession(session.token, restoredUser);
-        sessionStorage.removeItem(DEMO_ORIGINAL_SESSION_KEY);
-        return restoredUser;
-      } catch {
-        sessionStorage.removeItem(DEMO_ORIGINAL_SESSION_KEY);
-        throw new Error("Your Demo customer session has expired. Please sign in again.");
+      if (saved) {
+        try {
+          const session = JSON.parse(saved);
+          const res = await axios.get(`${API}/auth/me`, {
+            headers: { Authorization: `Bearer ${session.token}` },
+          });
+          applySession(session.token, res.data);
+          sessionStorage.removeItem(DEMO_ORIGINAL_SESSION_KEY);
+    sessionStorage.removeItem(DEMO_SESSION_ID_KEY);
+          return res.data;
+        } catch {
+          sessionStorage.removeItem(DEMO_ORIGINAL_SESSION_KEY);
+        }
       }
     }
 
-    const currentToken = localStorage.getItem(TOKEN_KEY);
-    if (currentToken && !sessionStorage.getItem(DEMO_ORIGINAL_SESSION_KEY)) {
-      sessionStorage.setItem(
-        DEMO_ORIGINAL_SESSION_KEY,
-        JSON.stringify({ token: currentToken, user })
-      );
-    }
-
-    const res = await axios.post(`${API}/demo/switch-role`, { role });
+    const res = await axios.post(`${API}/demo/switch-role`, {
+      role,
+      session_id: sessionId,
+    });
     applySession(res.data.token, res.data.user);
     return res.data.user;
   };
