@@ -79,8 +79,8 @@ function AppRouter() {
         <Route path="/admin/offers" element={<ProtectedRoute roles={IS_DEMO ? ["admin"] : ["admin", "staff"]}><AdminOffers /></ProtectedRoute>} />
         <Route path="/staff" element={<ProtectedRoute roles={IS_DEMO ? ["staff"] : ["admin", "staff"]}><StaffDashboard /></ProtectedRoute>} />
         <Route path="/chef" element={<ProtectedRoute roles={IS_DEMO ? ["chef"] : ["admin", "staff", "chef"]}><ChefOrders /></ProtectedRoute>} />
-        <Route path="/pos" element={<ProtectedRoute roles={IS_DEMO ? ["salesman"] : ["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
-        <Route path="/admin/pos" element={<ProtectedRoute roles={IS_DEMO ? ["salesman"] : ["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
+        <Route path="/pos" element={<ProtectedRoute roles={IS_DEMO ? ["staff"] : ["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
+        <Route path="/admin/pos" element={<ProtectedRoute roles={IS_DEMO ? ["staff"] : ["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
       </Route>
       <Route path="/demo-admin" element={<DemoAdminLogin />} />
        <Route path="*" element={<Navigate to="/" replace />} />

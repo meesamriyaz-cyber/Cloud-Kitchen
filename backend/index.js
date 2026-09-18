@@ -524,7 +524,7 @@ function adminOnly(req, res, next) {
 function posAccess(req, res, next) {
   authRequired(req, res, () => {
     const allowed = IS_DEMO
-      ? req.user.role === 'salesman'
+      ? req.user.role === 'staff'
       : ['admin', 'staff', 'salesman'].includes(req.user.role);
     if (!allowed) return res.status(403).json({ detail: 'POS access only' });
     next();

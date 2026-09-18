@@ -11,9 +11,9 @@ const ROLES = [
     icon: UserRound,
   },
   {
-    role: "salesman",
-    label: "POS / Sales",
-    description: "Process walk-in sales and manage POS orders.",
+    role: "staff",
+    label: "Staff / POS",
+    description: "Handle counter sales, POS orders and restaurant fulfillment.",
     icon: MonitorCog,
   },
   {
@@ -21,12 +21,6 @@ const ROLES = [
     label: "Kitchen / Chef",
     description: "View incoming orders and manage kitchen status.",
     icon: ChefHat,
-  },
-  {
-    role: "staff",
-    label: "Staff",
-    description: "Experience day-to-day restaurant operations.",
-    icon: MonitorCog,
   },
   {
     role: "admin",
@@ -57,9 +51,8 @@ export default function DemoRoleSwitcher({ open, onClose }) {
       await switchDemoRole(role);
       const landing = {
         customer: "/",
-        salesman: "/pos",
-        chef: "/chef",
         staff: "/staff",
+        chef: "/chef",
         admin: "/admin",
       }[role] || "/";
       onClose();
