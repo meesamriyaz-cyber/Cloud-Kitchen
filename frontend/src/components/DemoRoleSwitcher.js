@@ -61,9 +61,8 @@ export default function DemoRoleSwitcher({ open, onClose }) {
       await switchDemoRole(role);
       const landing = {
         customer: "/",
-        salesman: "/pos",
-        chef: "/chef",
         staff: "/staff",
+        chef: "/chef",
         admin: "/admin",
       }[role] || "/";
       onClose();
