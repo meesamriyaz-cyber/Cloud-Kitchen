@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Clock3, ListOrdered, RefreshCw, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 export default function StaffDashboard() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const loadOrders = async () => {
     setLoading(true);
@@ -60,7 +62,10 @@ export default function StaffDashboard() {
             Handle day-to-day orders and restaurant operations without administrator settings.
           </p>
         </div>
-        <div>
+        <div className="flex items-center gap-2">
+          <Button className="rounded-full" onClick={() => navigate("/pos")}>
+            Open POS
+          </Button>
           <Button variant="outline" className="rounded-full" onClick={loadOrders} disabled={loading}>
             <RefreshCw size={15} className={loading ? "mr-2 animate-spin" : "mr-2"} /> Refresh
           </Button>
