@@ -608,12 +608,14 @@ function transitionOrderStatus(order, newStatus, role) {
     };
   }
 
-  const actors = ORDER_STATUS_ACTORS[order.status]?.[newStatus];
-  if (!actors?.has(role)) {
-    return {
-      ok: false,
-      error: `${role === 'admin' ? 'Admin' : 'This role'} cannot move an order from ${ORDER_STATUS_LABELS[order.status] || order.status} to ${ORDER_STATUS_LABELS[newStatus] || newStatus}`,
-    };
+  if (IS_DEMO) {
+    const actors = ORDER_STATUS_ACTORS[order.status]?.[newStatus];
+    if (!actors?.has(role)) {
+      return {
+        ok: false,
+        error: `${role === 'admin' ? 'Admin' : 'This role'} cannot move an order from ${ORDER_STATUS_LABELS[order.status] || order.status} to ${ORDER_STATUS_LABELS[newStatus] || newStatus}`,
+      };
+    }
   }
 
   return { ok: true, error: null };
