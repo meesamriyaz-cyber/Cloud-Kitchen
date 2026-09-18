@@ -207,7 +207,7 @@ export default function AdminOrders() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{humanStatus(s)}</SelectItem>)}
+                      {getStatusOptions(o.status).map(s => <SelectItem key={s} value={s} className="capitalize">{humanStatus(s)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </td>
