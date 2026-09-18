@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useFirm } from "@/context/FirmContext";
 import CartSheet from "@/components/CartSheet";
+import DemoRoleSwitcher from "@/components/DemoRoleSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 import ScrollToTop from "@/components/ScrollToTop";
 import { ChefHat, Home, LayoutDashboard, LogOut, MonitorCog, ReceiptText, ShoppingBag, Tag, User, Utensils, Users, TrendingUp } from "lucide-react";
@@ -23,6 +24,7 @@ export default function Layout() {
   const isSalesman = user && user.role === "salesman";
   const isChef = user && user.role === "chef";
   const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/pos") || location.pathname.startsWith("/chef");
+  const [demoRoleSwitcherOpen, setDemoRoleSwitcherOpen] = React.useState(false);
 
   const nav = [
     { to: "/", label: "Home", icon: Home },
@@ -110,6 +112,11 @@ export default function Layout() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>
                   {isStaff && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
+                  {IS_DEMO && (
+                    <DropdownMenuItem onClick={() => setDemoRoleSwitcherOpen(true)} data-testid="menu-demo-role-switcher">
+                      <LayoutDashboard size={14} className="mr-2" /> Switch Demo Role
+                    </DropdownMenuItem>
+                  )}
                   {(isStaff || isSalesman || isChef) && (
                     <DropdownMenuItem onClick={() => navigate("/pos")} data-testid="menu-pos">
                       <MonitorCog size={14} className="mr-2" /> POS
@@ -191,6 +198,12 @@ export default function Layout() {
       )}
 
       <CartSheet />
+      {IS_DEMO && (
+        <DemoRoleSwitcher
+          open={demoRoleSwitcherOpen}
+          onClose={() => setDemoRoleSwitcherOpen(false)}
+        />
+      )}
     </div>
   );
 }
