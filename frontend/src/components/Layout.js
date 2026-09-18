@@ -25,7 +25,7 @@ export default function Layout() {
   const location = useLocation();
   const isAdmin = user?.role === "admin";
   const isStaff = user?.role === "staff";
-  const isSalesman = user && user.role === "salesman";
+  const isSalesman = !IS_DEMO && user?.role === "salesman";
   const isChef = user && user.role === "chef";
   const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/staff") || location.pathname.startsWith("/pos") || location.pathname.startsWith("/chef");
   const [demoRoleSwitcherOpen, setDemoRoleSwitcherOpen] = React.useState(false);
@@ -42,8 +42,14 @@ export default function Layout() {
     ] : []),
     ...(isStaff ? [
       { to: "/staff", label: "Staff", icon: LayoutDashboard },
+      { to: "/pos", label: "POS", icon: MonitorCog },
     ] : []),
-    ...(isAdmin || isStaff || isSalesman ? [
+    ...(isAdmin && !IS_DEMO ? [
+      { to: "/admin/pos", label: "POS", icon: MonitorCog },
+    ] : []),
+    ...(!IS_DEMO && isSalesman ? [
+      { to: "/pos", label: "POS", icon: MonitorCog },
+    ] : []),
       { to: "/pos", label: "POS", icon: MonitorCog },
     ] : []),
     ...(isChef ? [
