@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 
 export const DEMO_ADMIN_EMAIL = 'demo@cloudkitchen.local';
 export const DEMO_ADMIN_NAME = 'Demo Administrator';
@@ -15,8 +15,8 @@ export const DEMO_PERSONA_EMAILS = Object.values(DEMO_PERSONAS).map(persona => p
 
 export async function ensureDemoCustomer(User, sessionId) {
   const safeId = String(sessionId || randomUUID()).trim();
-  const hash = randomUUID().replace(/-/g, '').slice(0, 12) + safeId.replace(/[^a-zA-Z0-9]/g, '').slice(-12);
-  const email = `demo-customer-${hash.toLowerCase()}@cloudkitchen.local`;
+  const hash = createHash('sha256').update(safeId).digest('hex').slice(0, 24);
+  const email = `demo-customer-${hash}@cloudkitchen.local`;
 
   let customer = await User.findOne({ email });
   if (!customer) {
