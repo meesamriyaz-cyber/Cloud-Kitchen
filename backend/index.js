@@ -554,7 +554,10 @@ function orderStatusAccess(req, res, next) {
 
 function orderViewAccess(req, res, next) {
   authRequired(req, res, () => {
-    if (!['admin', 'staff', 'salesman', 'chef'].includes(req.user.role)) return res.status(403).json({ detail: 'Order view access only' });
+    const allowed = IS_DEMO
+      ? ['admin', 'staff', 'chef'].includes(req.user.role)
+      : ['admin', 'staff', 'salesman', 'chef'].includes(req.user.role);
+    if (!allowed) return res.status(403).json({ detail: 'Order view access only' });
     next();
   });
 }
@@ -1378,7 +1381,7 @@ app.post('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), (r
   res.json({ ok: true });
 });
 
-app.get('/api/pos/orders', kitchenAccess, async (_req, res) => {
+app.get('/api/pos/orders', IS_DEMO ? posAccess : kitchenAccess, async (_req, res) => {
   const orders = await Order.find({ channel: 'pos' }).sort({ created_at: -1 }).limit(50).lean();
   res.json(orders);
 });

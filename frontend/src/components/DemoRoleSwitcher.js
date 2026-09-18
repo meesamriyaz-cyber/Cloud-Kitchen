@@ -12,8 +12,8 @@ const ROLES = [
   },
   {
     role: "staff",
-    label: "Staff / POS",
-    description: "Handle counter sales, POS orders and restaurant fulfillment.",
+    label: "Staff",
+    description: "Handle restaurant operations, orders and fulfillment.",
     icon: MonitorCog,
   },
   {
