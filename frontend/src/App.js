@@ -27,6 +27,10 @@ import AdminOffers from "@/pages/admin/AdminOffers";
 import ChefOrders from "@/pages/chef/ChefOrders";
 import POS from "@/pages/pos/POS";
 import Layout from "@/components/Layout";
+import StaffDashboard from "@/pages/staff/StaffDashboard";
+
+const APP_MODE = process.env.REACT_APP_APP_MODE || "production";
+const IS_DEMO = APP_MODE === "demo";
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -67,15 +71,16 @@ function AppRouter() {
         <Route path="/orders/:oid/receipt" element={<ProtectedRoute><ReceiptPrint /></ProtectedRoute>} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/admin" element={<ProtectedRoute roles={["admin", "staff"]}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/menu" element={<ProtectedRoute roles={["admin", "staff"]}><AdminMenu /></ProtectedRoute>} />
-        <Route path="/admin/orders" element={<ProtectedRoute roles={["admin", "staff"]}><AdminOrders /></ProtectedRoute>} />
-        <Route path="/admin/users" element={<ProtectedRoute roles={["admin", "staff"]}><AdminUsers /></ProtectedRoute>} />
-        <Route path="/admin/sales" element={<ProtectedRoute roles={["admin", "staff"]}><AdminSales /></ProtectedRoute>} />
-        <Route path="/admin/offers" element={<ProtectedRoute roles={["admin", "staff"]}><AdminOffers /></ProtectedRoute>} />
-        <Route path="/chef" element={<ProtectedRoute roles={["admin", "staff", "chef"]}><ChefOrders /></ProtectedRoute>} />
-        <Route path="/pos" element={<ProtectedRoute roles={["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
-        <Route path="/admin/pos" element={<ProtectedRoute roles={["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute roles={IS_DEMO ? ["admin"] : ["admin", "staff"]}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/menu" element={<ProtectedRoute roles={IS_DEMO ? ["admin"] : ["admin", "staff"]}><AdminMenu /></ProtectedRoute>} />
+        <Route path="/admin/orders" element={<ProtectedRoute roles={IS_DEMO ? ["admin"] : ["admin", "staff"]}><AdminOrders /></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute roles={IS_DEMO ? ["admin"] : ["admin", "staff"]}><AdminUsers /></ProtectedRoute>} />
+        <Route path="/admin/sales" element={<ProtectedRoute roles={IS_DEMO ? ["admin"] : ["admin", "staff"]}><AdminSales /></ProtectedRoute>} />
+        <Route path="/admin/offers" element={<ProtectedRoute roles={IS_DEMO ? ["admin"] : ["admin", "staff"]}><AdminOffers /></ProtectedRoute>} />
+        <Route path="/staff" element={<ProtectedRoute roles={IS_DEMO ? ["staff"] : ["admin", "staff"]}><StaffDashboard /></ProtectedRoute>} />
+        <Route path="/chef" element={<ProtectedRoute roles={IS_DEMO ? ["chef"] : ["admin", "staff", "chef"]}><ChefOrders /></ProtectedRoute>} />
+        <Route path="/pos" element={<ProtectedRoute roles={IS_DEMO ? ["salesman"] : ["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
+        <Route path="/admin/pos" element={<ProtectedRoute roles={IS_DEMO ? ["salesman"] : ["admin", "staff", "salesman"]}><POS /></ProtectedRoute>} />
       </Route>
       <Route path="/demo-admin" element={<DemoAdminLogin />} />
        <Route path="*" element={<Navigate to="/" replace />} />

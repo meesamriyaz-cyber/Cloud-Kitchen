@@ -14,7 +14,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { resetDemoData } from "./demoReset.js";
-import { ensureDemoAdmin, DEMO_ADMIN_EMAIL } from "./demoAdmin.js";
+import { ensureDemoAdmin, ensureDemoPersona, ensureDemoCustomer, DEMO_ADMIN_EMAIL, DEMO_PERSONAS } from "./demoAdmin.js";
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const APP_MODE = process.env.APP_MODE || 'production';
 const IS_DEMO = APP_MODE === 'demo';
@@ -412,6 +412,49 @@ app.post('/api/demo/admin-login', async (_req, res) => {
   });
 });
 
+app.post('/api/demo/switch-role', authRequired, async (req, res) => {
+  if (!IS_DEMO) {
+    return res.status(404).json({ detail: 'Not found' });
+  }
+
+  const role = String(req.body?.role || '').trim().toLowerCase();
+  if (role === 'customer') {
+    const sessionId = String(req.body?.session_id || '').trim();
+    if (!sessionId) return res.status(400).json({ detail: 'Demo customer session id is required' });
+
+    const customer = req.user.role === 'customer'
+      ? req.user
+      : await ensureDemoCustomer(User, sessionId);
+
+    return res.json({
+      ok: true,
+      demo: true,
+      mode: 'demo',
+      role,
+      token: signJwt(customer.user_id, { demo: true, demo_role: role }),
+      user: publicUser(customer),
+    });
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(DEMO_PERSONAS, role)) {
+    return res.status(400).json({ detail: 'Invalid Demo role' });
+  }
+
+  const persona = await ensureDemoPersona(User, role);
+  if (!persona) {
+    return res.status(400).json({ detail: 'Demo role is unavailable' });
+  }
+
+  return res.json({
+    ok: true,
+    demo: true,
+    mode: 'demo',
+    role,
+    token: signJwt(persona.user_id, { demo: true, demo_role: role }),
+    user: publicUser(persona),
+  });
+});
+
 app.post('/api/demo/reset', async (_req, res) => {
   if (!IS_DEMO) {
     return res.status(404).json({ detail: 'Not found' });
@@ -470,21 +513,30 @@ function authRequired(req, res, next) {
 
 function adminOnly(req, res, next) {
   authRequired(req, res, () => {
-    if (!STAFF_ROLES.has(req.user.role)) return res.status(403).json({ detail: 'Staff only' });
+    const allowed = IS_DEMO
+      ? req.user.role === 'admin'
+      : STAFF_ROLES.has(req.user.role);
+    if (!allowed) return res.status(403).json({ detail: 'Admin only' });
     next();
   });
 }
 
 function posAccess(req, res, next) {
   authRequired(req, res, () => {
-    if (!['admin', 'staff', 'salesman'].includes(req.user.role)) return res.status(403).json({ detail: 'POS access only' });
+    const allowed = IS_DEMO
+      ? req.user.role === 'salesman'
+      : ['admin', 'staff', 'salesman'].includes(req.user.role);
+    if (!allowed) return res.status(403).json({ detail: 'POS access only' });
     next();
   });
 }
 
 function kitchenAccess(req, res, next) {
   authRequired(req, res, () => {
-    if (!KITCHEN_ROLES.has(req.user.role)) return res.status(403).json({ detail: 'Kitchen access only' });
+    const allowed = IS_DEMO
+      ? req.user.role === 'chef'
+      : KITCHEN_ROLES.has(req.user.role);
+    if (!allowed) return res.status(403).json({ detail: 'Kitchen access only' });
     next();
   });
 }
