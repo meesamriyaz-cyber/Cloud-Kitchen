@@ -125,7 +125,7 @@ export default function Layout() {
                       <LayoutDashboard size={14} className="mr-2" /> Switch Demo Role
                     </DropdownMenuItem>
                   )}
-                  {(isStaff || isSalesman || isChef) && (
+                  {(isAdmin || isStaff || isSalesman) && (
                     <DropdownMenuItem onClick={() => navigate("/pos")} data-testid="menu-pos">
                       <MonitorCog size={14} className="mr-2" /> POS
                     </DropdownMenuItem>
