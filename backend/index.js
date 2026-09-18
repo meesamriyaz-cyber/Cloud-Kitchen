@@ -14,6 +14,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { resetDemoData } from "./demoReset.js";
+import { ensureDemoAdmin, DEMO_ADMIN_EMAIL } from "./demoAdmin.js";
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const APP_MODE = process.env.APP_MODE || 'production';
 const IS_DEMO = APP_MODE === 'demo';
@@ -372,24 +373,7 @@ app.post('/api/demo/initialize', async (_req, res) => {
     { new: true, upsert: true }
   );
 
-  const demoAdminEmail = 'demo@cloudkitchen.local';
-
-  let admin = await User.findOne({ email: demoAdminEmail });
-
-  if (!admin) {
-    const password = await bcrypt.hash(randomUUID(), 10);
-
-    admin = await User.create({
-      name: 'Demo Administrator',
-      email: demoAdminEmail,
-      password,
-      role: 'admin',
-      provider: 'local',
-    });
-  } else if (admin.role !== 'admin') {
-    admin.role = 'admin';
-    await admin.save();
-  }
+  const admin = await ensureDemoAdmin(User);
 
   const inventory = await seedStarterInventory();
 
@@ -401,7 +385,7 @@ app.post('/api/demo/initialize', async (_req, res) => {
     db_name: DB_NAME,
     firm: normalizeFirm(firm.toObject()),
     inventory,
-    token: signJwt(admin.user_id),
+    token: signJwt(admin.user_id, { demo: true }),
     user: publicUser(admin),
   });
 });
@@ -417,16 +401,7 @@ app.post('/api/demo/admin-login', async (_req, res) => {
     }
   }
 
-  const admin = await User.findOne({
-    email: 'demo@cloudkitchen.local',
-    role: 'admin',
-  });
-
-  if (!admin) {
-    return res.status(404).json({
-      detail: 'Demo administrator has not been initialized',
-    });
-  }
+  const admin = await ensureDemoAdmin(User);
 
   return res.json({
     ok: true,
@@ -469,8 +444,8 @@ app.use((req, res, next) => {
 
 app.use((req, _res, next) => { console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`); next(); });
 
-function signJwt(user_id) {
-  return jwt.sign({ user_id }, JWT_SECRET, { expiresIn: '7d' });
+function signJwt(user_id, claims = {}) {
+  return jwt.sign({ user_id, ...claims }, JWT_SECRET, { expiresIn: '7d' });
 }
 
 async function resolveUser(req) {
@@ -687,18 +662,19 @@ async function getDemoStatus() {
 
   if (!mongoConnected) return base;
 
-  const [settings, adminCount] = await Promise.all([
+  const [settings, admin] = await Promise.all([
     FirmSetting.findOne({ key: 'primary' }).lean(),
-    User.countDocuments({ role: 'admin' }),
+    User.findOne({ email: DEMO_ADMIN_EMAIL, role: 'admin' }).lean(),
   ]);
 
   const firm = normalizeFirm(settings || {});
-  const setupComplete = Boolean(firm.setup_complete && adminCount > 0);
+  const hasAdmin = Boolean(admin);
+  const setupComplete = Boolean(firm.setup_complete && hasAdmin);
 
   return {
     ...base,
     firm,
-    has_admin: adminCount > 0,
+    has_admin: hasAdmin,
     setup_complete: setupComplete,
     needs_setup: !setupComplete,
   };
@@ -1354,6 +1330,9 @@ app.get('/api/admin/users', adminStrict, async (_req, res) => {
 app.post('/api/admin/users', adminStrict, async (req, res) => {
   const { name, email, password, role } = req.body || {};
   if (!name || !email || !password || !role) return res.status(400).json({ detail: 'Missing fields' });
+  if (IS_DEMO && role === 'admin') {
+    return res.status(400).json({ detail: 'The Demo administrator is fixed and cannot be duplicated.' });
+  }
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) return res.status(400).json({ detail: 'Email already registered' });
   const hash = await bcrypt.hash(password, 10);
@@ -1364,7 +1343,13 @@ app.post('/api/admin/users', adminStrict, async (req, res) => {
 app.put('/api/admin/users/:id', adminStrict, async (req, res) => {
   const u = await User.findOne({ user_id: req.params.id });
   if (!u) return res.status(404).json({ detail: 'Not found' });
+  if (IS_DEMO && u.email === DEMO_ADMIN_EMAIL) {
+    return res.status(400).json({ detail: 'The Demo administrator account cannot be modified.' });
+  }
   const { name, email, role, password } = req.body || {};
+  if (IS_DEMO && role === 'admin') {
+    return res.status(400).json({ detail: 'The Demo administrator is fixed and cannot be duplicated.' });
+  }
   if (name) u.name = name;
   if (email) u.email = email.toLowerCase();
   if (role) u.role = role;
@@ -1374,6 +1359,11 @@ app.put('/api/admin/users/:id', adminStrict, async (req, res) => {
 });
 
 app.delete('/api/admin/users/:id', adminStrict, async (req, res) => {
+  const u = await User.findOne({ user_id: req.params.id });
+  if (!u) return res.status(404).json({ detail: 'Not found' });
+  if (IS_DEMO && u.email === DEMO_ADMIN_EMAIL) {
+    return res.status(400).json({ detail: 'The Demo administrator account cannot be deleted.' });
+  }
   const r = await User.deleteOne({ user_id: req.params.id });
   if (!r.deletedCount) return res.status(404).json({ detail: 'Not found' });
   res.json({ ok: true });
