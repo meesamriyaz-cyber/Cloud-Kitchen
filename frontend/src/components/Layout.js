@@ -7,7 +7,7 @@ import { useFirm } from "@/context/FirmContext";
 import CartSheet from "@/components/CartSheet";
 import ThemeToggle from "@/components/ThemeToggle";
 import ScrollToTop from "@/components/ScrollToTop";
-import { ChefHat, Home, LayoutDashboard, LogOut, MonitorCog, ReceiptText, ShoppingBag, Tag, User, Utensils, Users, TrendingUp } from "lucide-react";
+import { ChefHat, Home, LayoutDashboard, LogOut, MonitorCog, ReceiptText, ShoppingBag, Tag, User, Utensils, Users, TrendingUp, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
@@ -20,16 +20,19 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const isStaff = user && ["admin", "staff"].includes(user.role);
+  const isAdmin = user?.role === "admin";
+  const isStaffUser = user?.role === "staff";
   const isSalesman = user && user.role === "salesman";
   const isChef = user && user.role === "chef";
-  const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/pos") || location.pathname.startsWith("/chef");
+  const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/staff") || location.pathname.startsWith("/pos") || location.pathname.startsWith("/chef");
 
   const nav = [
     { to: "/", label: "Home", icon: Home },
     { to: "/menu", label: "Menu", icon: Utensils },
     ...(user ? [{ to: "/orders", label: "My Orders", icon: ReceiptText }] : []),
+    ...(isStaffUser ? [{ to: "/staff", label: "Staff Dashboard", icon: ClipboardList }] : []),
     ...(isStaff ? [
-      { to: "/admin", label: "Admin", icon: LayoutDashboard },
+      { to: "/admin", label: isAdmin ? "Admin" : "Admin Tools", icon: LayoutDashboard },
       { to: "/admin/users", label: "Users", icon: Users },
       { to: "/admin/sales", label: "Sales", icon: TrendingUp },
       { to: "/admin/offers", label: "Offers", icon: Tag },
@@ -76,7 +79,7 @@ export default function Layout() {
             })}
           </nav>
 
-           <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
             {!isOpsRoute && (
               <button
                 onClick={() => setOpen(true)}
@@ -98,7 +101,7 @@ export default function Layout() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-              <button className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 transition-colors p-2.5" data-testid="user-menu-button" aria-label="Open user menu">
+                  <button className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 transition-colors p-2.5" data-testid="user-menu-button" aria-label="Open user menu">
                     <User size={18} className="text-stone-600 dark:text-stone-300" />
                   </button>
                 </DropdownMenuTrigger>
@@ -109,6 +112,7 @@ export default function Layout() {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>
+                  {isStaffUser && <DropdownMenuItem onClick={() => navigate("/staff")} data-testid="menu-staff-dashboard">Staff Dashboard</DropdownMenuItem>}
                   {isStaff && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
                   {(isStaff || isSalesman || isChef) && (
                     <DropdownMenuItem onClick={() => navigate("/pos")} data-testid="menu-pos">
@@ -128,17 +132,8 @@ export default function Layout() {
               </DropdownMenu>
             ) : (
               <>
-                <Button
-                   variant="ghost"
-                   className="rounded-full hidden sm:inline-flex text-stone-600 dark:text-stone-300"
-                   onClick={() => navigate("/login")}
-                   data-testid="header-login-btn"
-                 >Login</Button>
-                <Button
-                   className="rounded-full bg-primary hover:opacity-95 text-white"
-                   onClick={() => navigate("/signup")}
-                   data-testid="header-signup-btn"
-                 >Sign up</Button>
+                <Button variant="ghost" className="rounded-full hidden sm:inline-flex text-stone-600 dark:text-stone-300" onClick={() => navigate("/login")} data-testid="header-login-btn">Login</Button>
+                <Button className="rounded-full bg-primary hover:opacity-95 text-white" onClick={() => navigate("/signup")} data-testid="header-signup-btn">Sign up</Button>
               </>
             )}
           </div>
@@ -152,9 +147,9 @@ export default function Layout() {
                 key={n.to}
                 to={n.to}
                 data-testid={`mobile-nav-link-${n.label.toLowerCase().replace(/\s/g, '-')}`}
-                 className={`shrink-0 h-10 px-3 rounded-full text-xs font-semibold inline-flex items-center gap-2 border ${
-                   active ? "bg-primary text-white border-primary" : "bg-white/80 dark:bg-stone-800/70 text-stone-700 border-stone-200"
-                 }`}
+                className={`shrink-0 h-10 px-3 rounded-full text-xs font-semibold inline-flex items-center gap-2 border ${
+                  active ? "bg-primary text-white border-primary" : "bg-white/80 dark:bg-stone-800/70 text-stone-700 border-stone-200"
+                }`}
               >
                 <Icon size={14} />
                 {n.label}
@@ -165,13 +160,7 @@ export default function Layout() {
       </header>
 
       <main className={isOpsRoute ? "pb-8" : "pb-20"}>
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
-        >
+        <motion.div key={location.pathname} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35, ease: "easeOut" }}>
           <Outlet />
         </motion.div>
       </main>
