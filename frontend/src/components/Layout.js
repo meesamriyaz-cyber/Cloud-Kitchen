@@ -7,7 +7,7 @@ import { useFirm } from "@/context/FirmContext";
 import CartSheet from "@/components/CartSheet";
 import ThemeToggle from "@/components/ThemeToggle";
 import ScrollToTop from "@/components/ScrollToTop";
-import { ChefHat, Home, LayoutDashboard, LogOut, MonitorCog, ReceiptText, ShoppingBag, Tag, User, Utensils, Users, TrendingUp, ClipboardList } from "lucide-react";
+import { ChefHat, Home, LayoutDashboard, LogOut, MonitorCog, ReceiptText, ShoppingBag, Tag, User, Utensils, Users, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
@@ -19,25 +19,30 @@ export default function Layout() {
   const { firm } = useFirm();
   const navigate = useNavigate();
   const location = useLocation();
-  const isStaff = user && ["admin", "staff"].includes(user.role);
   const isAdmin = user?.role === "admin";
-  const isStaffUser = user?.role === "staff";
-  const isSalesman = user && user.role === "salesman";
-  const isChef = user && user.role === "chef";
+  const isStaff = user?.role === "staff";
+  const isSalesman = user?.role === "salesman";
+  const isChef = user?.role === "chef";
   const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/staff") || location.pathname.startsWith("/pos") || location.pathname.startsWith("/chef");
 
   const nav = [
     { to: "/", label: "Home", icon: Home },
     { to: "/menu", label: "Menu", icon: Utensils },
-    ...(user ? [{ to: "/orders", label: "My Orders", icon: ReceiptText }] : []),
-    ...(isStaffUser ? [{ to: "/staff", label: "Staff Dashboard", icon: ClipboardList }] : []),
+    ...(user && !isChef ? [{ to: "/orders", label: "My Orders", icon: ReceiptText }] : []),
     ...(isAdmin ? [
       { to: "/admin", label: "Admin", icon: LayoutDashboard },
       { to: "/admin/users", label: "Users", icon: Users },
       { to: "/admin/sales", label: "Sales", icon: TrendingUp },
       { to: "/admin/offers", label: "Offers", icon: Tag },
     ] : []),
-    ...(isStaff || isSalesman ? [
+    ...(isStaff ? [
+      { to: "/staff", label: "Staff", icon: LayoutDashboard },
+      { to: "/pos", label: "POS", icon: MonitorCog },
+    ] : []),
+    ...(isAdmin ? [
+      { to: "/pos", label: "POS", icon: MonitorCog },
+    ] : []),
+    ...(isSalesman ? [
       { to: "/pos", label: "POS", icon: MonitorCog },
     ] : []),
     ...(isChef ? [
@@ -67,10 +72,8 @@ export default function Layout() {
                 <Link
                   key={n.to}
                   to={n.to}
-                  data-testid={`nav-link-${n.label.toLowerCase().replace(/\\s/g, '-')}`}
-                  className={`h-10 px-4 rounded-full text-sm font-medium transition-colors inline-flex items-center gap-2 ${
-                    active ? "bg-primary text-white shadow-sm" : "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
-                  }`}
+                  data-testid={`nav-link-${n.label.toLowerCase().replace(/\s/g, "-")}`}
+                  className={`h-10 px-4 rounded-full text-sm font-medium transition-colors inline-flex items-center gap-2 ${active ? "bg-primary text-white shadow-sm" : "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"}`}
                 >
                   <Icon size={15} />
                   {n.label}
@@ -111,10 +114,10 @@ export default function Layout() {
                     <div className="text-xs text-stone-500 dark:text-stone-400">{user.email}</div>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>
-                  {isStaffUser && <DropdownMenuItem onClick={() => navigate("/staff")} data-testid="menu-staff-dashboard">Staff Dashboard</DropdownMenuItem>}
+                  {!isChef && <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>}
                   {isAdmin && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
-                  {(isStaff || isSalesman) && (
+                  {isStaff && <DropdownMenuItem onClick={() => navigate("/staff")} data-testid="menu-staff">Staff Dashboard</DropdownMenuItem>}
+                  {(isAdmin || isStaff || isSalesman) && (
                     <DropdownMenuItem onClick={() => navigate("/pos")} data-testid="menu-pos">
                       <MonitorCog size={14} className="mr-2" /> POS
                     </DropdownMenuItem>
@@ -132,8 +135,17 @@ export default function Layout() {
               </DropdownMenu>
             ) : (
               <>
-                <Button variant="ghost" className="rounded-full hidden sm:inline-flex text-stone-600 dark:text-stone-300" onClick={() => navigate("/login")} data-testid="header-login-btn">Login</Button>
-                <Button className="rounded-full bg-primary hover:opacity-95 text-white" onClick={() => navigate("/signup")} data-testid="header-signup-btn">Sign up</Button>
+                <Button
+                  variant="ghost"
+                  className="rounded-full hidden sm:inline-flex text-stone-600 dark:text-stone-300"
+                  onClick={() => navigate("/login")}
+                  data-testid="header-login-btn"
+                >Login</Button>
+                <Button
+                  className="rounded-full bg-primary hover:opacity-95 text-white"
+                  onClick={() => navigate("/signup")}
+                  data-testid="header-signup-btn"
+                >Sign up</Button>
               </>
             )}
           </div>
@@ -146,10 +158,8 @@ export default function Layout() {
               <Link
                 key={n.to}
                 to={n.to}
-                data-testid={`mobile-nav-link-${n.label.toLowerCase().replace(/\\s/g, '-')}`}
-                className={`shrink-0 h-10 px-3 rounded-full text-xs font-semibold inline-flex items-center gap-2 border ${
-                  active ? "bg-primary text-white border-primary" : "bg-white/80 dark:bg-stone-800/70 text-stone-700 border-stone-200"
-                }`}
+                data-testid={`mobile-nav-link-${n.label.toLowerCase().replace(/\s/g, "-")}`}
+                className={`shrink-0 h-10 px-3 rounded-full text-xs font-semibold inline-flex items-center gap-2 border ${active ? "bg-primary text-white border-primary" : "bg-white/80 dark:bg-stone-800/70 text-stone-700 border-stone-200"}`}
               >
                 <Icon size={14} />
                 {n.label}
@@ -160,7 +170,13 @@ export default function Layout() {
       </header>
 
       <main className={isOpsRoute ? "pb-8" : "pb-20"}>
-        <motion.div key={location.pathname} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35, ease: "easeOut" }}>
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+        >
           <Outlet />
         </motion.div>
       </main>
