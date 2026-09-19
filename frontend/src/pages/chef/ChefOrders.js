@@ -10,6 +10,14 @@ import { formatMoney, humanStatus, orderCustomer, shortOrderId } from "@/lib/for
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const ORDER_STATUSES = ["placed", "preparing", "ready", "out_for_delivery", "delivered", "cancelled"];
+const CHEF_NEXT_STATUSES = {
+  placed: ["preparing"],
+  preparing: ["ready"],
+  ready: [],
+  out_for_delivery: [],
+  delivered: [],
+  cancelled: [],
+};
 
 export default function ChefOrders() {
   const [orders, setOrders] = useState([]);
@@ -23,14 +31,10 @@ export default function ChefOrders() {
     try {
       const params = {};
       if (statusFilter !== "all") params.status = statusFilter;
-      const [posRes, adminRes] = await Promise.all([
-        axios.get(`${API}/pos/orders`, { params }),
-        axios.get(`${API}/admin/orders`, { params }),
-      ]);
-      const combined = [...posRes.data, ...adminRes.data];
-      const unique = Array.from(new Map(combined.map(o => [o.id, o])).values());
-      unique.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      setOrders(unique);
+      const res = await axios.get(`${API}/admin/orders`, { params });
+      const orders = res.data || [];
+      orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setOrders(orders);
     } catch (err) {
       setError(err.response?.data?.detail || "Unable to load orders.");
     } finally {
@@ -45,20 +49,13 @@ export default function ChefOrders() {
       await axios.put(`${API}/admin/orders/${oid}/status`, { status: nextStatus });
       toast.success("Status updated");
       load();
-    } catch {
-      toast.error("Failed to update status");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to update status");
+      load();
     }
   };
 
-  const getNextStatuses = (currentStatus) => {
-    switch (currentStatus) {
-      case "placed": return ["preparing", "cancelled"];
-      case "preparing": return ["ready", "cancelled"];
-      case "ready": return ["out_for_delivery", "cancelled"];
-      case "out_for_delivery": return ["delivered", "cancelled"];
-      default: return [];
-    }
-  };
+  const getNextStatuses = (currentStatus) => CHEF_NEXT_STATUSES[currentStatus] || [];
 
   return (
     <div className="max-w-7xl mx-auto px-5 py-8">

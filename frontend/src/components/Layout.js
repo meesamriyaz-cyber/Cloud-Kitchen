@@ -19,22 +19,30 @@ export default function Layout() {
   const { firm } = useFirm();
   const navigate = useNavigate();
   const location = useLocation();
-  const isStaff = user && ["admin", "staff"].includes(user.role);
-  const isSalesman = user && user.role === "salesman";
-  const isChef = user && user.role === "chef";
-  const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/pos") || location.pathname.startsWith("/chef");
+  const isAdmin = user?.role === "admin";
+  const isStaff = user?.role === "staff";
+  const isSalesman = user?.role === "salesman";
+  const isChef = user?.role === "chef";
+  const isOpsRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/staff") || location.pathname.startsWith("/pos") || location.pathname.startsWith("/chef");
 
   const nav = [
     { to: "/", label: "Home", icon: Home },
     { to: "/menu", label: "Menu", icon: Utensils },
-    ...(user ? [{ to: "/orders", label: "My Orders", icon: ReceiptText }] : []),
-    ...(isStaff ? [
+    ...(user && !isChef ? [{ to: "/orders", label: "My Orders", icon: ReceiptText }] : []),
+    ...(isAdmin ? [
       { to: "/admin", label: "Admin", icon: LayoutDashboard },
       { to: "/admin/users", label: "Users", icon: Users },
       { to: "/admin/sales", label: "Sales", icon: TrendingUp },
       { to: "/admin/offers", label: "Offers", icon: Tag },
     ] : []),
-    ...(isStaff || isSalesman || isChef ? [
+    ...(isStaff ? [
+      { to: "/staff", label: "Staff", icon: LayoutDashboard },
+      { to: "/pos", label: "POS", icon: MonitorCog },
+    ] : []),
+    ...(isAdmin ? [
+      { to: "/pos", label: "POS", icon: MonitorCog },
+    ] : []),
+    ...(isSalesman ? [
       { to: "/pos", label: "POS", icon: MonitorCog },
     ] : []),
     ...(isChef ? [
@@ -64,10 +72,8 @@ export default function Layout() {
                 <Link
                   key={n.to}
                   to={n.to}
-                  data-testid={`nav-link-${n.label.toLowerCase().replace(/\s/g, '-')}`}
-                  className={`h-10 px-4 rounded-full text-sm font-medium transition-colors inline-flex items-center gap-2 ${
-                    active ? "bg-primary text-white shadow-sm" : "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
-                  }`}
+                  data-testid={`nav-link-${n.label.toLowerCase().replace(/\s/g, "-")}`}
+                  className={`h-10 px-4 rounded-full text-sm font-medium transition-colors inline-flex items-center gap-2 ${active ? "bg-primary text-white shadow-sm" : "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"}`}
                 >
                   <Icon size={15} />
                   {n.label}
@@ -76,7 +82,7 @@ export default function Layout() {
             })}
           </nav>
 
-           <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
             {!isOpsRoute && (
               <button
                 onClick={() => setOpen(true)}
@@ -98,7 +104,7 @@ export default function Layout() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-              <button className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 transition-colors p-2.5" data-testid="user-menu-button" aria-label="Open user menu">
+                  <button className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 transition-colors p-2.5" data-testid="user-menu-button" aria-label="Open user menu">
                     <User size={18} className="text-stone-600 dark:text-stone-300" />
                   </button>
                 </DropdownMenuTrigger>
@@ -108,9 +114,10 @@ export default function Layout() {
                     <div className="text-xs text-stone-500 dark:text-stone-400">{user.email}</div>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>
-                  {isStaff && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
-                  {(isStaff || isSalesman || isChef) && (
+                  {!isChef && <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>}
+                  {isAdmin && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
+                  {isStaff && <DropdownMenuItem onClick={() => navigate("/staff")} data-testid="menu-staff">Staff Dashboard</DropdownMenuItem>}
+                  {(isAdmin || isStaff || isSalesman) && (
                     <DropdownMenuItem onClick={() => navigate("/pos")} data-testid="menu-pos">
                       <MonitorCog size={14} className="mr-2" /> POS
                     </DropdownMenuItem>
@@ -129,16 +136,16 @@ export default function Layout() {
             ) : (
               <>
                 <Button
-                   variant="ghost"
-                   className="rounded-full hidden sm:inline-flex text-stone-600 dark:text-stone-300"
-                   onClick={() => navigate("/login")}
-                   data-testid="header-login-btn"
-                 >Login</Button>
+                  variant="ghost"
+                  className="rounded-full hidden sm:inline-flex text-stone-600 dark:text-stone-300"
+                  onClick={() => navigate("/login")}
+                  data-testid="header-login-btn"
+                >Login</Button>
                 <Button
-                   className="rounded-full bg-primary hover:opacity-95 text-white"
-                   onClick={() => navigate("/signup")}
-                   data-testid="header-signup-btn"
-                 >Sign up</Button>
+                  className="rounded-full bg-primary hover:opacity-95 text-white"
+                  onClick={() => navigate("/signup")}
+                  data-testid="header-signup-btn"
+                >Sign up</Button>
               </>
             )}
           </div>
@@ -151,10 +158,8 @@ export default function Layout() {
               <Link
                 key={n.to}
                 to={n.to}
-                data-testid={`mobile-nav-link-${n.label.toLowerCase().replace(/\s/g, '-')}`}
-                 className={`shrink-0 h-10 px-3 rounded-full text-xs font-semibold inline-flex items-center gap-2 border ${
-                   active ? "bg-primary text-white border-primary" : "bg-white/80 dark:bg-stone-800/70 text-stone-700 border-stone-200"
-                 }`}
+                data-testid={`mobile-nav-link-${n.label.toLowerCase().replace(/\s/g, "-")}`}
+                className={`shrink-0 h-10 px-3 rounded-full text-xs font-semibold inline-flex items-center gap-2 border ${active ? "bg-primary text-white border-primary" : "bg-white/80 dark:bg-stone-800/70 text-stone-700 border-stone-200"}`}
               >
                 <Icon size={14} />
                 {n.label}
