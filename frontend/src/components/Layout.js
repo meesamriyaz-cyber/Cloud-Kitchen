@@ -33,7 +33,7 @@ export default function Layout() {
   const nav = [
     { to: "/", label: "Home", icon: Home },
     { to: "/menu", label: "Menu", icon: Utensils },
-    ...(user ? [{ to: "/orders", label: "My Orders", icon: ReceiptText }] : []),
+    ...(user && !isChef ? [{ to: "/orders", label: "My Orders", icon: ReceiptText }] : []),
     ...(isAdmin ? [
       { to: "/admin", label: "Admin", icon: LayoutDashboard },
       { to: "/admin/users", label: "Users", icon: Users },
@@ -121,7 +121,7 @@ export default function Layout() {
                     <div className="text-xs text-stone-500 dark:text-stone-400">{user.email}</div>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>
+                  {!isChef && <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>}
                   {isAdmin && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
                   {isStaff && <DropdownMenuItem onClick={() => navigate("/staff")} data-testid="menu-staff">Staff Dashboard</DropdownMenuItem>}
                   {IS_DEMO && (
