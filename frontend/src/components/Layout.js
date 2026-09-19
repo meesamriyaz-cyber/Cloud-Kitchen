@@ -31,13 +31,13 @@ export default function Layout() {
     { to: "/menu", label: "Menu", icon: Utensils },
     ...(user ? [{ to: "/orders", label: "My Orders", icon: ReceiptText }] : []),
     ...(isStaffUser ? [{ to: "/staff", label: "Staff Dashboard", icon: ClipboardList }] : []),
-    ...(isStaff ? [
-      { to: "/admin", label: isAdmin ? "Admin" : "Admin Tools", icon: LayoutDashboard },
+    ...(isAdmin ? [
+      { to: "/admin", label: "Admin", icon: LayoutDashboard },
       { to: "/admin/users", label: "Users", icon: Users },
       { to: "/admin/sales", label: "Sales", icon: TrendingUp },
       { to: "/admin/offers", label: "Offers", icon: Tag },
     ] : []),
-    ...(isStaff || isSalesman || isChef ? [
+    ...(isStaff || isSalesman ? [
       { to: "/pos", label: "POS", icon: MonitorCog },
     ] : []),
     ...(isChef ? [
@@ -67,7 +67,7 @@ export default function Layout() {
                 <Link
                   key={n.to}
                   to={n.to}
-                  data-testid={`nav-link-${n.label.toLowerCase().replace(/\s/g, '-')}`}
+                  data-testid={`nav-link-${n.label.toLowerCase().replace(/\\s/g, '-')}`}
                   className={`h-10 px-4 rounded-full text-sm font-medium transition-colors inline-flex items-center gap-2 ${
                     active ? "bg-primary text-white shadow-sm" : "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
                   }`}
@@ -113,8 +113,8 @@ export default function Layout() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="menu-my-orders">My Orders</DropdownMenuItem>
                   {isStaffUser && <DropdownMenuItem onClick={() => navigate("/staff")} data-testid="menu-staff-dashboard">Staff Dashboard</DropdownMenuItem>}
-                  {isStaff && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
-                  {(isStaff || isSalesman || isChef) && (
+                  {isAdmin && <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">Admin Dashboard</DropdownMenuItem>}
+                  {(isStaff || isSalesman) && (
                     <DropdownMenuItem onClick={() => navigate("/pos")} data-testid="menu-pos">
                       <MonitorCog size={14} className="mr-2" /> POS
                     </DropdownMenuItem>
@@ -146,7 +146,7 @@ export default function Layout() {
               <Link
                 key={n.to}
                 to={n.to}
-                data-testid={`mobile-nav-link-${n.label.toLowerCase().replace(/\s/g, '-')}`}
+                data-testid={`mobile-nav-link-${n.label.toLowerCase().replace(/\\s/g, '-')}`}
                 className={`shrink-0 h-10 px-3 rounded-full text-xs font-semibold inline-flex items-center gap-2 border ${
                   active ? "bg-primary text-white border-primary" : "bg-white/80 dark:bg-stone-800/70 text-stone-700 border-stone-200"
                 }`}
