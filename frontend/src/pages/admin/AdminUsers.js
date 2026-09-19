@@ -139,13 +139,11 @@ export default function AdminUsers() {
         </Dialog>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           ["Total users", users.length],
           ["Admins", users.filter(u => u.role === "admin").length],
-          ["Staff", users.filter(u => u.role === "staff").length],
           ["Salesmen", users.filter(u => u.role === "salesman").length],
-          ["Chefs", users.filter(u => u.role === "chef").length],
           ["Customers", users.filter(u => u.role === "customer").length],
         ].map(([label, value]) => (
           <div key={label} className="soft-panel p-4">
