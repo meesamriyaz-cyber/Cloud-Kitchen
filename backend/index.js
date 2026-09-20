@@ -13,7 +13,7 @@ import multer from 'multer';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
+import { duplicateStatusValidation } from './orderStatusValidation.js';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = parseInt(process.env.PORT || '8002', 10);
 const MONGO_URL = process.env.RESTAURANT_APP_MONGO_URI || process.env.MONGO_URI;
@@ -412,8 +412,9 @@ function transitionOrderStatus(order, newStatus, role) {
     return { ok: false, error: 'Invalid status' };
   }
   if (order.status === newStatus) {
-    return { ok: true, error: null };
-  }
+  const duplicateValidation = duplicateStatusValidation(order, newStatus);
+  if (duplicateValidation) return duplicateValidation;
+}
 
   const allowed = ORDER_STATUS_TRANSITIONS[order.status] || [];
   if (!allowed.includes(newStatus)) {
