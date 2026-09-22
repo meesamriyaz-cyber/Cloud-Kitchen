@@ -130,7 +130,6 @@ export default function POS() {
 
   const placeOrder = async () => {
    if (placingRef.current) return;
-      placingRef.current = true;
     if (!cart.length) {
       toast.error("Add at least one item");
       return;
@@ -140,6 +139,7 @@ export default function POS() {
       return;
     }
 
+    placingRef.current = true;
     setPlacing(true);
     try {
       const res = await axios.post(`${API}/pos/orders`, {
