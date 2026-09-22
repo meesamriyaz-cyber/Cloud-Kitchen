@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -68,7 +68,9 @@ export default function POS() {
   const [upiDeepLink, setUpiDeepLink] = useState("");
   const [upiQrUrl, setUpiQrUrl] = useState("");
   const [upiCopied, setUpiCopied] = useState(false);
-
+  const placingRef = useRef(false);
+  const confirmingPaymentRef = useRef(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
   const loadMenu = async () => {
     const [dishRes, catRes] = await Promise.all([axios.get(`${API}/dishes`), axios.get(`${API}/categories`)]);
     setDishes(dishRes.data);
@@ -127,6 +129,8 @@ export default function POS() {
   };
 
   const placeOrder = async () => {
+   if (placingRef.current) return;
+      placingRef.current = true;
     if (!cart.length) {
       toast.error("Add at least one item");
       return;
@@ -159,27 +163,79 @@ export default function POS() {
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to create POS order");
     } finally {
+      placingRef.current = false;
       setPlacing(false);
     }
   };
 
-  const confirmPayment = async () => {
-    if (!lastOrder) return;
-    try {
-      const res = await axios.post(`${API}/pos/orders/${lastOrder.id}/pay`);
-      const paidOrder = res.data;
-      setLastOrder(paidOrder);
-      setPaymentStep("completed");
-      toast.success("Payment confirmed");
-      setTimeout(() => {
-        if (!printReceipt(paidOrder)) {
-          toast("Allow popups to print the receipt", { action: { label: "Retry", onClick: () => printReceipt(paidOrder) } });
-        }
-      }, 500);
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Payment failed");
-    }
-  };
+ const confirmPayment = async () => {
+  if (!lastOrder) return;
+
+  if (lastOrder.payment_status === "paid") {
+    toast.error("This order is already paid");
+    return;
+  }
+
+  // Cash received may exceed the bill because change is returned.
+  // The backend must receive the exact order total.
+  const amount = Number(lastOrder.total);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    toast.error("Invalid order total");
+    return;
+  }
+
+  if (
+    paymentMethod === "cash" &&
+    (!cashReceived || Number(cashReceived) < amount)
+  ) {
+    toast.error("Cash received must cover the order total");
+    return;
+  }
+
+  try {
+      if (confirmingPaymentRef.current) return;
+        confirmingPaymentRef.current = true;
+        setConfirmingPayment(true);
+    const res = await axios.post(
+      `${API}/pos/orders/${lastOrder.id}/pay`,
+      {
+        method: paymentMethod,
+        amount,
+      }
+    );
+
+    const paidOrder = res.data;
+
+    setLastOrder(paidOrder);
+    setPaymentStep("completed");
+
+    toast.success("Payment confirmed");
+
+    await loadRecent();
+
+    setTimeout(() => {
+      if (!printReceipt(paidOrder)) {
+        toast(
+          "Allow popups to print the receipt",
+          {
+            action: {
+              label: "Retry",
+              onClick: () => printReceipt(paidOrder),
+            },
+          }
+        );
+      }
+    }, 500);
+  } catch (err) {
+    toast.error(
+      err.response?.data?.detail || "Payment failed"
+    );
+  }finally {
+     confirmingPaymentRef.current = false;
+     setConfirmingPayment(false);
+}
+};
 
   const openInvoice = () => {
     if (!lastOrder) return;
@@ -481,7 +537,7 @@ export default function POS() {
             <div className="p-6">
               <div className="flex items-center justify-between">
                 <h3 className="font-display text-xl font-semibold">Collect Payment</h3>
-                   <button onClick={() => { setPaymentStep(null); setLastOrder(null); }} className="p-1 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-full">
+                   <button onClick={() => { setPaymentStep(null); }} className="p-1 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-full">
                   <X size={20} />
                 </button>
               </div>
@@ -587,15 +643,29 @@ export default function POS() {
                     </div>
                   )}
 
-                  <Button
+                 <Button
                     className="w-full rounded-full bg-green-600 hover:bg-green-700"
                     onClick={confirmPayment}
-                    disabled={paymentMethod === "cash" && (!cashReceived || Number(cashReceived) < lastOrder.total)}
+                    disabled={
+                      confirmingPayment ||
+                      (paymentMethod === "cash" &&
+                        (!cashReceived ||
+                        Number(cashReceived) < lastOrder.total))
+                    }
                     data-testid="confirm-payment-btn"
                   >
-                    <CheckCircle2 size={16} className="mr-2" />
-                    Confirm Payment
-                  </Button>
+          {confirmingPayment ? (
+    <>
+      <Loader2 size={16} className="mr-2 animate-spin" />
+      Confirming...
+    </>
+  ) : (
+    <>
+      <CheckCircle2 size={16} className="mr-2" />
+      Confirm Payment
+    </>
+  )}
+</Button>
                 </div>
               )}
 
