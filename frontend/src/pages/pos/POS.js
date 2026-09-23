@@ -598,6 +598,17 @@ export default function POS() {
                     <div className="text-2xl font-bold font-display mt-1">{formatMoney(lastOrder.total, { noPaise: true })}</div>
                     <div className="text-xs text-stone-500 dark:text-stone-400 mt-1 capitalize">{paymentMethod} payment</div>
                   </div>
+                  <div>
+                    <Label className="text-stone-700 dark:text-stone-300">Payment method</Label>
+                    <Select value={paymentMethod} onValueChange={(method) => { setPaymentMethod(method); setCashReceived(""); setPaymentLink(""); setUpiDeepLink(""); }}>
+                      <SelectTrigger className="mt-1 rounded-xl dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" data-testid="resume-payment-method">
+                        <SelectValue placeholder="Choose collection method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {paymentOptions.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   {paymentMethod === "cash" && (
             <div className="mt-6 space-y-3">

@@ -19,6 +19,7 @@ export default function StaffDashboard() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashReceived, setCashReceived] = useState("");
   const [collectingPayment, setCollectingPayment] = useState(false);
+  const [paymentLinks, setPaymentLinks] = useState({});
   const navigate = useNavigate();
 
   const loadOrders = async ({ quiet = false } = {}) => {
@@ -96,6 +97,17 @@ export default function StaffDashboard() {
       setBusyOrderId(null);
     }
   };
+  const createPaymentLink = async (order) => {
+    if (busyOrderId) return;
+    setBusyOrderId(order.id);
+    try {
+      const { data } = await axios.post(`${API}/admin/orders/${order.id}/payment-link`);
+      setPaymentLinks(prev => ({ ...prev, [order.id]: data.link_url }));
+      toast.success("Payment link generated. Share it with the customer; payment remains pending until verified.");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Unable to generate payment link.");
+    } finally { setBusyOrderId(null); }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-5 py-8">
@@ -138,20 +150,49 @@ export default function StaffDashboard() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
                   <Badge className="border-0 bg-primary text-white capitalize">{humanStatus(order.status)}</Badge>
-                  {order.status === "out_for_delivery" && unpaid && order.payment_method === "cod" && (
-                    <Button
-                      size="sm"
-                      className="rounded-full"
-                      onClick={() => {
-                        setPaymentOrder(order);
-                        setPaymentMethod("cash");
-                        setCashReceived("");
-                      }}
-                      disabled={Boolean(busyOrderId) || collectingPayment}
-                    >
-                      Collect payment
-                    </Button>
-                  )}
+{order.status === "out_for_delivery" &&
+  unpaid &&
+  order.payment_method === "cod" && (
+    <Button
+      size="sm"
+      className="rounded-full"
+      onClick={() => {
+        setPaymentOrder(order);
+        setPaymentMethod("cash");
+        setCashReceived("");
+      }}
+      disabled={Boolean(busyOrderId) || collectingPayment}
+    >
+      Collect payment
+    </Button>
+  )}
+
+{unpaid &&
+  order.channel !== "pos" &&
+  ["web", "android"].includes(order.channel) &&
+  String(order.payment_method || "").toLowerCase() === "cod" &&
+  !["cancelled", "delivered"].includes(order.status) && (
+    <Button
+      size="sm"
+      variant="outline"
+      className="rounded-full"
+      onClick={() => createPaymentLink(order)}
+      disabled={Boolean(busyOrderId)}
+    >
+      Generate payment link
+    </Button>
+  )}
+
+{paymentLinks[order.id] && (
+  <a
+    className="text-xs underline text-primary break-all"
+    href={paymentLinks[order.id]}
+    target="_blank"
+    rel="noreferrer"
+  >
+    Open / share payment link
+  </a>
+)}
                   {nextStatus && <Button size="sm" className="rounded-full" onClick={() => updateStatus(order, nextStatus)} disabled={Boolean(busyOrderId) || (nextStatus === "delivered" && unpaid)} title={nextStatus === "delivered" && unpaid ? "Payment must be confirmed first" : undefined}>{busy ? "Updating…" : `Mark ${humanStatus(nextStatus)}`}</Button>}
                   {order.status === "out_for_delivery" && unpaid && <span className="text-xs text-amber-700">Confirm collection first</span>}
                 </div>

@@ -243,6 +243,7 @@
     status: { type: String, default: 'placed' },
     razorpay_order_id: String,
     razorpay_payment_id: String,
+    razorpay_payment_link_id: String,
     order_no: Number,
   }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, versionKey: false });
 
@@ -1179,6 +1180,7 @@ if (!RAZORPAY_ENABLED || !rzp) {
         notify: { sms: false, email: false },
         reminder_enable: false,
       });
+      await Order.updateOne({ id: order.id, payment_status: { $ne: 'paid' } }, { $set: { razorpay_payment_link_id: link.id } });
       res.json({ link_url: link.short_url, link_id: link.id });
     } catch (err) {
       console.error('[razorpay] payment link error', err);
@@ -1212,34 +1214,232 @@ if (['cancelled', 'delivered'].includes(order.status)) {
     res.json({ upi_url: upiUrl, upi_id });
   });
 
-  app.post('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), (req, res) => {
-    const signature = req.headers['x-razorpay-signature'];
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    if (!webhookSecret) {
-      console.warn('[webhook] RAZORPAY_WEBHOOK_SECRET not set, skipping verification');
-    } else {
-      const expected = crypto.createHmac('sha256', webhookSecret).update(req.body).digest('hex');
-      if (!crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signature || '', 'hex'))) {
-        return res.status(400).json({ detail: 'Invalid signature' });
-      }
+  // Staff collection is deliberately limited to unpaid COD web/android orders.
+  // POS collection remains on its separately scoped POS endpoints.
+  app.post('/api/admin/orders/:oid/collect-payment', authRequired, async (req, res) => {
+    if (!['admin', 'staff'].includes(req.user.role)) {
+      return res.status(403).json({ detail: 'Staff or admin access required' });
     }
-    let event;
-    try { event = JSON.parse(req.body.toString()); } catch { return res.status(400).json({ detail: 'Invalid JSON' }); }
-    if (event.event === 'payment.captured' || event.event === 'payment_link.paid') {
-      const payment = event.payload?.payment || event.payload?.payment_link?.payment;
-      const orderId = payment?.order_id || event.payload?.payment_link?.entity?.order_id;
-      if (orderId) {
-        Order.findOne({ razorpay_order_id: orderId }).then(order => {
-          if (order && order.payment_status !== 'paid') {
-            order.payment_status = 'paid';
-            order.razorpay_payment_id = payment?.id || event.payload?.payment_link?.entity?.payment_id;
-            order.save().then(() => console.log('[webhook] order paid', order.id)).catch(console.error);
-          }
-        }).catch(console.error);
-      }
+    const method = String(req.body?.method || '').trim().toLowerCase();
+    const amount = Number(req.body?.amount);
+    if (!['cash', 'upi', 'card'].includes(method)) {
+      return res.status(400).json({ detail: 'Collection method must be cash, upi, or card' });
     }
-    res.json({ ok: true });
+    const order = await Order.findOne({ id: req.params.oid });
+    if (!order) return res.status(404).json({ detail: 'Order not found' });
+    if (order.channel === 'pos' || !['web', 'android'].includes(order.channel) || String(order.payment_method || '').toLowerCase() !== 'cod') {
+      return res.status(403).json({ detail: 'Manual collection is only allowed for web/app COD orders' });
+    }
+    if (order.payment_status === 'paid') return res.status(409).json({ detail: 'Order is already paid' });
+    if (['cancelled', 'delivered'].includes(order.status)) return res.status(400).json({ detail: 'Cannot collect payment for a cancelled or delivered order' });
+    if (!Number.isFinite(amount) || amount <= 0 || roundMoney(amount) !== roundMoney(order.total)) {
+      return res.status(400).json({ detail: 'Collected amount must match the order total' });
+    }
+    const updated = await Order.findOneAndUpdate(
+    {
+      id: order.id,
+      payment_status: { $ne: 'paid' },
+      channel: { $in: ['web', 'android'] },
+      $expr: {
+        $eq: [{ $toLower: { $ifNull: ['$payment_method', ''] } }, 'cod'],
+      },
+      status: { $nin: ['cancelled', 'delivered'] },
+    },
+      { $set: { payment_status: 'paid', payment_collection_method: method, payment_collected_amount: roundMoney(amount), payment_collected_by: req.user.user_id, payment_collected_at: new Date() } },
+      { new: true }
+    );
+    if (!updated) return res.status(409).json({ detail: 'Payment state changed; refresh and retry' });
+    return res.json(updated.toObject());
   });
+
+  app.post('/api/admin/orders/:oid/payment-link', authRequired, async (req, res) => {
+    if (!['admin', 'staff'].includes(req.user.role)) return res.status(403).json({ detail: 'Staff or admin access required' });
+    const order = await Order.findOne({ id: req.params.oid });
+    if (!order) return res.status(404).json({ detail: 'Order not found' });
+    if (order.channel === 'pos' || !['web', 'android'].includes(order.channel) || String(order.payment_method || '').toLowerCase() !== 'cod') {
+      return res.status(403).json({ detail: 'Payment links are only allowed for web/app COD orders' });
+    }
+    if (order.payment_status === 'paid') return res.status(409).json({ detail: 'Order is already paid' });
+    if (['cancelled', 'delivered'].includes(order.status)) return res.status(400).json({ detail: 'Cannot create a payment link for a cancelled or delivered order' });
+    if (!RAZORPAY_ENABLED || !rzp) return res.status(503).json({ detail: 'Razorpay not configured' });
+    try {
+      const firm = await getFirmSettings();
+      const link = await rzp.paymentLink.create({
+        amount: Math.round(order.total * 100), currency: 'INR', reference_id: order.id,
+        description: `Order #${order.order_no} - ${firm.name}`,
+        notify: { sms: false, email: false }, reminder_enable: false,
+      });
+     const linkedOrder = await Order.findOneAndUpdate(
+  {
+    id: order.id,
+    payment_status: { $ne: 'paid' },
+    channel: { $in: ['web', 'android'] },
+    $expr: {
+      $eq: [{ $toLower: { $ifNull: ['$payment_method', ''] } }, 'cod'],
+    },
+    status: { $nin: ['cancelled', 'delivered'] },
+  },
+  { $set: { razorpay_payment_link_id: link.id } },
+  { new: true }
+);
+
+if (!linkedOrder) {
+  return res.status(409).json({
+    detail: 'Order payment state changed; refresh before creating a payment link',
+  });
+}
+
+return res.json({
+  link_url: link.short_url,
+  link_id: link.id,
+  order_id: linkedOrder.id,
+});
+    } catch (err) {
+      console.error('[razorpay] staff COD payment link error', err);
+      return res.status(500).json({ detail: 'Failed to create payment link' });
+    }
+  });
+
+ app.post('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), async (req, res) => {
+  const signature = req.headers['x-razorpay-signature'];
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    console.error('[webhook] RAZORPAY_WEBHOOK_SECRET is not configured');
+    return res.status(503).json({ detail: 'Webhook signature verification is not configured' });
+  }
+
+  const expected = crypto
+    .createHmac('sha256', webhookSecret)
+    .update(req.body)
+    .digest('hex');
+
+  const receivedBuffer = /^[a-f0-9]{64}$/i.test(String(signature || ''))
+    ? Buffer.from(signature, 'hex')
+    : Buffer.alloc(0);
+  const expectedBuffer = Buffer.from(expected, 'hex');
+
+  if (
+    receivedBuffer.length !== expectedBuffer.length ||
+    !crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
+  ) {
+    return res.status(400).json({ detail: 'Invalid signature' });
+  }
+
+  let event;
+  try {
+    event = JSON.parse(req.body.toString());
+  } catch {
+    return res.status(400).json({ detail: 'Invalid JSON' });
+  }
+
+  try {
+    if (event.event === 'payment.captured') {
+      const payment = event.payload?.payment?.entity;
+      if (!payment?.order_id || !payment?.id) {
+        return res.status(400).json({ detail: 'Missing payment details' });
+      }
+
+      const order = await Order.findOne({
+        razorpay_order_id: payment.order_id,
+      });
+
+      if (!order) {
+        console.warn('[webhook] No order for captured payment', payment.order_id);
+        return res.status(200).json({ ok: true });
+      }
+
+      const expectedPaise = Math.round(Number(order.total) * 100);
+
+      if (
+        payment.currency !== 'INR' ||
+        !Number.isFinite(expectedPaise) ||
+        Number(payment.amount) !== expectedPaise
+      ) {
+        console.error('[webhook] Captured payment amount/currency mismatch', {
+          orderId: order.id,
+          paymentId: payment.id,
+        });
+        return res.status(400).json({ detail: 'Payment amount or currency mismatch' });
+      }
+
+      const updated = await Order.findOneAndUpdate(
+        { id: order.id, payment_status: { $ne: 'paid' } },
+        {
+          $set: {
+            payment_status: 'paid',
+            payment_collection_method: 'razorpay',
+            payment_collected_amount: roundMoney(Number(payment.amount) / 100),
+            payment_collected_at: new Date(),
+            razorpay_payment_id: payment.id,
+          },
+        },
+        { new: true }
+      );
+
+      if (updated) console.log('[webhook] order paid', updated.id);
+    }
+
+    if (event.event === 'payment_link.paid') {
+      const linkEntity = event.payload?.payment_link?.entity;
+      if (!linkEntity?.id || !linkEntity?.reference_id) {
+        return res.status(400).json({ detail: 'Missing payment-link details' });
+      }
+
+      const order = await Order.findOne({
+        id: String(linkEntity.reference_id),
+        razorpay_payment_link_id: linkEntity.id,
+      });
+
+      if (!order) {
+        console.warn('[webhook] Payment link does not match an order', linkEntity.id);
+        return res.status(200).json({ ok: true });
+      }
+
+      const expectedPaise = Math.round(Number(order.total) * 100);
+
+      if (
+        linkEntity.currency !== 'INR' ||
+        !Number.isFinite(expectedPaise) ||
+        Number(linkEntity.amount_paid) !== expectedPaise
+      ) {
+        console.error('[webhook] Payment-link amount/currency mismatch', {
+          orderId: order.id,
+          linkId: linkEntity.id,
+        });
+        return res.status(400).json({ detail: 'Payment-link amount or currency mismatch' });
+      }
+
+      const payment = event.payload?.payment?.entity;
+      const paymentId = payment?.id || linkEntity.payment_id;
+
+      const updated = await Order.findOneAndUpdate(
+        {
+          id: order.id,
+          razorpay_payment_link_id: linkEntity.id,
+          payment_status: { $ne: 'paid' },
+        },
+        {
+          $set: {
+            payment_status: 'paid',
+            payment_collection_method: 'razorpay',
+            payment_collected_amount: roundMoney(Number(linkEntity.amount_paid) / 100),
+            payment_collected_at: new Date(),
+            ...(paymentId ? { razorpay_payment_id: paymentId } : {}),
+          },
+        },
+        { new: true }
+      );
+
+      if (updated) console.log('[webhook] payment-link order paid', updated.id);
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[webhook] Razorpay processing failed', err);
+    return res.status(500).json({ detail: 'Webhook processing failed' });
+  }
+});
 
   app.get('/api/pos/orders', posAccess, async (_req, res) => {
     const orders = await Order.find({ channel: 'pos' }).sort({ created_at: -1 }).limit(50).lean();
