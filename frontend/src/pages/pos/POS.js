@@ -540,9 +540,9 @@ export default function POS() {
                   onClick={() => {
                     setLastOrder(order);
                     setPaymentMethod(
-                      order.payment_collection_method ||
-                      order.payment_method ||
-                      "cash"
+                      order.payment_status === "paid"
+                        ? (order.payment_collection_method || "cash")
+                        : "cash"
                     );
                     setCashReceived("");
                     setPaymentLink("");
