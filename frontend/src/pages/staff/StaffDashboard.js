@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Clock3, ListOrdered, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Clock3, ListOrdered, RefreshCw, CheckCircle2, AlertCircle, Banknote, Smartphone, CreditCard, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { humanStatus, orderCustomer, shortOrderId } from "@/lib/format";
+import { humanStatus, orderCustomer, shortOrderId, formatMoney } from "@/lib/format";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const ACTIVE_STATUSES = ["placed", "preparing", "ready", "out_for_delivery"];
@@ -15,6 +15,10 @@ export default function StaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [busyOrderId, setBusyOrderId] = useState(null);
+  const [paymentOrder, setPaymentOrder] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [cashReceived, setCashReceived] = useState("");
+  const [collectingPayment, setCollectingPayment] = useState(false);
   const navigate = useNavigate();
 
   const loadOrders = async ({ quiet = false } = {}) => {
@@ -41,6 +45,38 @@ export default function StaffDashboard() {
 
   const active = orders.filter(order => ACTIVE_STATUSES.includes(order.status));
   const staffNextStatus = { ready: "out_for_delivery", out_for_delivery: "delivered" };
+
+  const collectPayment = async () => {
+    if (!paymentOrder || collectingPayment) return;
+
+    const amount = Number(paymentOrder.total);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Invalid order total.");
+      return;
+    }
+
+    if (paymentMethod === "cash" && (!cashReceived || Number(cashReceived) < amount)) {
+      toast.error("Cash received must cover the order total.");
+      return;
+    }
+
+    setCollectingPayment(true);
+    try {
+      const res = await axios.post(`${API}/delivery/orders/${paymentOrder.id}/pay`, {
+        method: paymentMethod,
+        amount,
+      });
+      setOrders(prev => prev.map(order => order.id === res.data.id ? res.data : order));
+      setPaymentOrder(null);
+      setCashReceived("");
+      toast.success("COD payment collected.");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Unable to collect payment.");
+      await loadOrders({ quiet: true });
+    } finally {
+      setCollectingPayment(false);
+    }
+  };
 
   const updateStatus = async (order, nextStatus) => {
     if (busyOrderId) return;
@@ -102,6 +138,20 @@ export default function StaffDashboard() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
                   <Badge className="border-0 bg-primary text-white capitalize">{humanStatus(order.status)}</Badge>
+                  {order.status === "out_for_delivery" && unpaid && order.payment_method === "cod" && (
+                    <Button
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => {
+                        setPaymentOrder(order);
+                        setPaymentMethod("cash");
+                        setCashReceived("");
+                      }}
+                      disabled={Boolean(busyOrderId) || collectingPayment}
+                    >
+                      Collect payment
+                    </Button>
+                  )}
                   {nextStatus && <Button size="sm" className="rounded-full" onClick={() => updateStatus(order, nextStatus)} disabled={Boolean(busyOrderId) || (nextStatus === "delivered" && unpaid)} title={nextStatus === "delivered" && unpaid ? "Payment must be confirmed first" : undefined}>{busy ? "Updating…" : `Mark ${humanStatus(nextStatus)}`}</Button>}
                   {order.status === "out_for_delivery" && unpaid && <span className="text-xs text-amber-700">Confirm collection first</span>}
                 </div>
@@ -111,6 +161,71 @@ export default function StaffDashboard() {
           </div>
         )}
       </section>
+      {paymentOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-stone-900 shadow-2xl overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display text-xl font-semibold dark:text-stone-100">Collect COD Payment</h3>
+                <button type="button" onClick={() => { setPaymentOrder(null); setCashReceived(""); }} className="p-1 rounded-full hover:bg-stone-100 dark:hover:bg-stone-800">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-stone-200 dark:border-stone-700 p-4">
+                <div className="text-xs text-stone-500 dark:text-stone-400">Order #{shortOrderId(paymentOrder)}</div>
+                <div className="mt-1 text-2xl font-bold dark:text-stone-100">{formatMoney(paymentOrder.total, { noPaise: true })}</div>
+                <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">Collect by Cash, UPI, or Card</div>
+              </div>
+
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                {[
+                  { value: "cash", label: "Cash", icon: Banknote },
+                  { value: "upi", label: "UPI", icon: Smartphone },
+                  { value: "card", label: "Card", icon: CreditCard },
+                ].map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setPaymentMethod(value)}
+                    className={`rounded-xl border p-3 text-sm font-medium ${paymentMethod === value ? "border-primary bg-primary/10 text-primary" : "border-stone-200 dark:border-stone-700"}`}
+                  >
+                    <Icon size={18} className="mx-auto mb-1" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {paymentMethod === "cash" && (
+                <div className="mt-4">
+                  <label className="text-sm font-medium dark:text-stone-200">Cash received (₹)</label>
+                  <input
+                    type="number"
+                    value={cashReceived}
+                    onChange={e => setCashReceived(e.target.value)}
+                    className="mt-1 w-full h-11 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 px-3 dark:text-stone-100"
+                    placeholder="Enter amount"
+                  />
+                  {Number(cashReceived) >= paymentOrder.total && (
+                    <div className="mt-2 rounded-xl bg-green-50 border border-green-200 p-3 text-sm text-green-800">
+                      Change to return: <strong>{formatMoney(Number(cashReceived) - paymentOrder.total, { noPaise: true })}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <Button
+                className="w-full mt-5 rounded-full bg-green-600 hover:bg-green-700"
+                onClick={collectPayment}
+                disabled={collectingPayment || (paymentMethod === "cash" && (!cashReceived || Number(cashReceived) < paymentOrder.total))}
+              >
+                {collectingPayment ? "Confirming…" : "Confirm payment"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
