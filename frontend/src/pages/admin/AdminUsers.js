@@ -127,6 +127,7 @@ export default function AdminUsers() {
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="staff">Staff</SelectItem>
                     <SelectItem value="salesman">Salesman</SelectItem>
+                    <SelectItem value="chef">Chef</SelectItem>
                     <SelectItem value="customer">Customer</SelectItem>
                   </SelectContent>
                 </Select>
@@ -169,6 +170,7 @@ export default function AdminUsers() {
               <SelectItem value="admin">Admin</SelectItem>
               <SelectItem value="staff">Staff</SelectItem>
               <SelectItem value="salesman">Salesman</SelectItem>
+              <SelectItem value="chef">Chef</SelectItem>
               <SelectItem value="customer">Customer</SelectItem>
             </SelectContent>
           </Select>
