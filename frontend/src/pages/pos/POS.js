@@ -159,7 +159,11 @@ export default function POS() {
       setPaymentLink("");
       setUpiDeepLink("");
       setPaymentStep("pending");
-      await loadRecent();
+        loadRecent().catch(() => {
+        toast.error(
+          "Order created, but recent orders could not refresh."
+        );
+      });
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to create POS order");
     } finally {
@@ -169,8 +173,7 @@ export default function POS() {
   };
 
  const confirmPayment = async () => {
-  if (!lastOrder) return;
-
+  if (!lastOrder || confirmingPaymentRef.current) return;
   if (lastOrder.payment_status === "paid") {
     toast.error("This order is already paid");
     return;
@@ -192,11 +195,10 @@ export default function POS() {
     toast.error("Cash received must cover the order total");
     return;
   }
-
+      confirmingPaymentRef.current = true;
+      setConfirmingPayment(true);
   try {
-      if (confirmingPaymentRef.current) return;
-        confirmingPaymentRef.current = true;
-        setConfirmingPayment(true);
+     
     const res = await axios.post(
       `${API}/pos/orders/${lastOrder.id}/pay`,
       {
@@ -305,8 +307,30 @@ export default function POS() {
           <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Create counter, pickup, dine-in, and staff-assisted delivery orders.</p>
         </div>
         <div className="flex gap-2">
-          {lastOrder && (
-            <Button variant="outline" className="rounded-full" onClick={() => printReceipt(lastOrder)}>
+                   {lastOrder && paymentStep === null && (
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={() =>
+                setPaymentStep(
+                  lastOrder.payment_status === "paid"
+                    ? "completed"
+                    : "pending"
+                )
+              }
+            >
+              {lastOrder.payment_status === "paid"
+                ? "View last order"
+                : "Resume payment"}
+            </Button>
+          )}
+
+          {lastOrder && lastOrder.payment_status === "paid" && (
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={() => printReceipt(lastOrder)}
+            >
               <Printer size={16} className="mr-2" /> Print last
             </Button>
           )}
@@ -510,8 +534,33 @@ export default function POS() {
             </div>
             <div className="mt-4 space-y-2">
               {recent.slice(0, 6).map(order => (
-                <div key={order.id} className="rounded-xl border border-stone-200 dark:border-stone-700 p-3">
-                  <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  key={order.id}
+                  onClick={() => {
+                    setLastOrder(order);
+                    setPaymentMethod(
+                      order.payment_collection_method ||
+                      order.payment_method ||
+                      "cash"
+                    );
+                    setCashReceived("");
+                    setPaymentLink("");
+                    setUpiDeepLink("");
+                    setUpiQrUrl("");
+                    setPaymentStep(
+                      order.payment_status === "paid"
+                        ? "completed"
+                        : "pending"
+                    );
+                  }}
+                  className="w-full text-left rounded-xl border border-stone-200 dark:border-stone-700 p-3 hover:border-primary/50 transition-colors"
+                  title={
+                    order.payment_status === "paid"
+                      ? "View paid order"
+                      : "Resume payment"
+                  }
+                >                  <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="font-mono text-xs text-stone-500 dark:text-stone-400">#{shortOrderId(order)}</div>
                       <div className="text-sm font-medium dark:text-stone-200">{orderCustomer(order)}</div>
@@ -523,7 +572,7 @@ export default function POS() {
                       </Badge>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
                 {recent.length === 0 && <div className="text-sm text-stone-500 dark:text-stone-400 py-4">No POS orders yet.</div>}
             </div>
