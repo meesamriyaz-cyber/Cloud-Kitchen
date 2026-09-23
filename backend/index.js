@@ -354,6 +354,13 @@
     });
   }
 
+  function deliveryAccess(req, res, next) {
+    authRequired(req, res, () => {
+      if (!['admin', 'staff'].includes(req.user.role)) return res.status(403).json({ detail: 'Delivery payment access only' });
+      next();
+    });
+  }
+
   function kitchenAccess(req, res, next) {
     authRequired(req, res, () => {
       if (!KITCHEN_ROLES.has(req.user.role)) return res.status(403).json({ detail: 'Kitchen access only' });
@@ -1077,6 +1084,67 @@ app.post('/api/pos/orders/:id/pay', posAccess, async (req, res) => {
 
   res.json(updated.toObject());
 });
+
+  app.post('/api/delivery/orders/:id/pay', deliveryAccess, async (req, res) => {
+    const method = String(req.body?.method || '').trim().toLowerCase();
+    const amount = Number(req.body?.amount);
+
+    if (!['cash', 'upi', 'card'].includes(method)) {
+      return res.status(400).json({ detail: 'Collection method must be cash, upi, or card' });
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ detail: 'A valid collected amount is required' });
+    }
+
+    const order = await Order.findOne({
+      id: req.params.id,
+      channel: { $in: ['web', 'android'] },
+      payment_method: 'cod',
+    });
+
+    if (!order) {
+      return res.status(404).json({ detail: 'COD delivery order not found' });
+    }
+
+    if (order.payment_status === 'paid') {
+      return res.status(409).json({ detail: 'Order is already paid' });
+    }
+
+    if (order.status !== 'out_for_delivery') {
+      return res.status(400).json({ detail: 'Payment can only be collected for an order that is out for delivery' });
+    }
+
+    if (roundMoney(amount) !== roundMoney(order.total)) {
+      return res.status(400).json({ detail: 'Collected amount must match the order total' });
+    }
+
+    const updated = await Order.findOneAndUpdate(
+      {
+        id: order.id,
+        channel: { $in: ['web', 'android'] },
+        payment_method: 'cod',
+        payment_status: { $ne: 'paid' },
+        status: 'out_for_delivery',
+      },
+      {
+        $set: {
+          payment_status: 'paid',
+          payment_collection_method: method,
+          payment_collected_amount: roundMoney(amount),
+          payment_collected_by: req.user.user_id,
+          payment_collected_at: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(409).json({ detail: 'Payment state changed; refresh and retry' });
+    }
+
+    res.json(updated.toObject());
+  });
 
   app.post('/api/pos/orders/:id/payment-link', posAccess, async (req, res) => {
     const order = await Order.findOne({
