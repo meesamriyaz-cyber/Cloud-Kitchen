@@ -1079,9 +1079,28 @@ app.post('/api/pos/orders/:id/pay', posAccess, async (req, res) => {
 });
 
   app.post('/api/pos/orders/:id/payment-link', posAccess, async (req, res) => {
-    const order = await Order.findOne({ id: req.params.id });
-    if (!order) return res.status(404).json({ detail: 'Order not found' });
-    if (!RAZORPAY_ENABLED) return res.status(400).json({ detail: 'Razorpay not configured' });
+    const order = await Order.findOne({
+  id: req.params.id,
+  channel: 'pos',
+});
+
+if (!order) {
+  return res.status(404).json({ detail: 'POS order not found' });
+}
+
+if (order.payment_status === 'paid') {
+  return res.status(409).json({ detail: 'Order is already paid' });
+}
+
+if (['cancelled', 'delivered'].includes(order.status)) {
+  return res.status(400).json({
+    detail: 'Cannot create a payment link for a cancelled or delivered order',
+  });
+}
+
+if (!RAZORPAY_ENABLED || !rzp) {
+  return res.status(503).json({ detail: 'Razorpay not configured' });
+}
     const firm = await getFirmSettings();
     try {
       const link = await rzp.paymentLink.create({
@@ -1100,8 +1119,24 @@ app.post('/api/pos/orders/:id/pay', posAccess, async (req, res) => {
   });
 
   app.post('/api/pos/orders/:id/upi-deep-link', posAccess, async (req, res) => {
-    const order = await Order.findOne({ id: req.params.id });
-    if (!order) return res.status(404).json({ detail: 'Order not found' });
+    const order = await Order.findOne({
+  id: req.params.id,
+  channel: 'pos',
+});
+
+if (!order) {
+  return res.status(404).json({ detail: 'POS order not found' });
+}
+
+if (order.payment_status === 'paid') {
+  return res.status(409).json({ detail: 'Order is already paid' });
+}
+
+if (['cancelled', 'delivered'].includes(order.status)) {
+  return res.status(400).json({
+    detail: 'Cannot create a UPI link for a cancelled or delivered order',
+  });
+}
     const firm = await getFirmSettings();
     const upi_id = String(req.body?.upi_id || firm.upi_id || '').trim();
     if (!upi_id) return res.status(400).json({ detail: 'UPI ID is not configured' });
@@ -1138,7 +1173,7 @@ app.post('/api/pos/orders/:id/pay', posAccess, async (req, res) => {
     res.json({ ok: true });
   });
 
-  app.get('/api/pos/orders', kitchenAccess, async (_req, res) => {
+  app.get('/api/pos/orders', posAccess, async (_req, res) => {
     const orders = await Order.find({ channel: 'pos' }).sort({ created_at: -1 }).limit(50).lean();
     res.json(orders);
   });
