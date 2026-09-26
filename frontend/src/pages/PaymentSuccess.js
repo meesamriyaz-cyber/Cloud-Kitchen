@@ -12,6 +12,7 @@ export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const orderId = searchParams.get("order_id");
+  const isPaymentLink = searchParams.get("source") === "payment_link";
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [printing, setPrinting] = useState(false);
@@ -21,17 +22,25 @@ export default function PaymentSuccess() {
       setLoading(false);
       return;
     }
-    axios.get(`${API}/orders/${orderId}`)
+
+    const endpoint = isPaymentLink
+      ? `${API}/payment-links/${orderId}/result`
+      : `${API}/orders/${orderId}`;
+
+    axios.get(endpoint)
       .then(r => {
         const loaded = r.data;
         setOrder(loaded);
-        setTimeout(() => {
-          printReceiptByOrder(loaded.id).catch(() => {});
-        }, 800);
+
+        if (!isPaymentLink) {
+          setTimeout(() => {
+            printReceiptByOrder(loaded.id).catch(() => {});
+          }, 800);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [orderId]);
+  }, [orderId, isPaymentLink]);
 
   const printInvoice = () => {
     setPrinting(true);
@@ -82,10 +91,12 @@ export default function PaymentSuccess() {
       </div>
 
       <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-         <Button variant="outline" className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" onClick={printInvoice} disabled={printing}>
-           <Printer size={16} className="mr-2" />
-           {printing ? "Printing..." : "Print Receipt"}
-         </Button>
+        {!isPaymentLink && (
+          <Button variant="outline" className="rounded-full bg-white dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200" onClick={printInvoice} disabled={printing}>
+            <Printer size={16} className="mr-2" />
+            {printing ? "Printing..." : "Print Receipt"}
+          </Button>
+        )}
         <Button className="rounded-full bg-primary hover:opacity-95" onClick={() => navigate(`/orders/${order.id}`)}>
           Track Order <ArrowRight size={16} className="ml-2" />
         </Button>
