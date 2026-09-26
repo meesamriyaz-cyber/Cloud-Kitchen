@@ -21,6 +21,7 @@
   const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
   const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
   const RAZORPAY_ENABLED = Boolean(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
+  const FRONTEND_URL = String(process.env.FRONTEND_URL || '').replace(/\/+$/, '');
   const ORDER_STATUSES = ['placed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'];
   const ORDER_STATUS_TRANSITIONS = {
     placed: ['preparing', 'cancelled'],
@@ -1270,10 +1271,19 @@ if (['cancelled', 'delivered'].includes(order.status)) {
     if (!RAZORPAY_ENABLED || !rzp) return res.status(503).json({ detail: 'Razorpay not configured' });
     try {
       const firm = await getFirmSettings();
+      if (!FRONTEND_URL) {
+        return res.status(503).json({ detail: 'Frontend URL is not configured' });
+      }
+
       const link = await rzp.paymentLink.create({
-        amount: Math.round(order.total * 100), currency: 'INR', reference_id: order.id,
+        amount: Math.round(order.total * 100),
+        currency: 'INR',
+        reference_id: order.id,
         description: `Order #${order.order_no} - ${firm.name}`,
-        notify: { sms: false, email: false }, reminder_enable: false,
+        callback_url: `${FRONTEND_URL}/payment/success?order_id=${encodeURIComponent(order.id)}&source=payment_link`,
+        callback_method: 'get',
+        notify: { sms: false, email: false },
+        reminder_enable: false,
       });
      const linkedOrder = await Order.findOneAndUpdate(
   {
@@ -1306,7 +1316,27 @@ return res.json({
     }
   });
 
- app.post('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), async (req, res) => {
+   app.get('/api/payment-links/:oid/result', async (req, res) => {
+    const order = await Order.findOne({
+      id: req.params.oid,
+      razorpay_payment_link_id: { $exists: true, $ne: null },
+    }).lean();
+
+    if (!order) {
+      return res.status(404).json({ detail: 'Payment-link order not found' });
+    }
+
+    res.json({
+      id: order.id,
+      order_no: order.order_no,
+      total: order.total,
+      payment_status: order.payment_status,
+      status: order.status,
+      razorpay_payment_id: order.razorpay_payment_id || null,
+    });
+  });
+
+app.post('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), async (req, res) => {
   const signature = req.headers['x-razorpay-signature'];
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
