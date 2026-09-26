@@ -39,7 +39,9 @@ export default function StaffDashboard() {
   loadOrders();
 
   const interval = setInterval(() => {
-    loadOrders({ quiet: true });
+     if (document.visibilityState === "visible") {
+      loadOrders({ quiet: true });
+    }
   }, 10000);
 
   return () => clearInterval(interval);
