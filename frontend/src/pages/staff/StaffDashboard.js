@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Clock3, ListOrdered, RefreshCw, CheckCircle2, AlertCircle, Banknote, Smartphone, CreditCard, X } from "lucide-react";
@@ -22,20 +22,28 @@ export default function StaffDashboard() {
   const [paymentLinks, setPaymentLinks] = useState({});
   const navigate = useNavigate();
 
-  const loadOrders = async ({ quiet = false } = {}) => {
-    if (!quiet) setLoading(true);
-    setLoadError("");
-    try {
-      const res = await axios.get(`${API}/admin/orders`);
-      setOrders(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      setLoadError(err.response?.data?.detail || "Could not load orders. Check your connection and refresh.");
-    } finally {
-      setLoading(false);
-    }
-  };
+ const loadOrders = useCallback(async ({ quiet = false } = {}) => {
+  if (!quiet) setLoading(true);
+  setLoadError("");
+  try {
+    const res = await axios.get(`${API}/admin/orders`);
+    setOrders(Array.isArray(res.data) ? res.data : []);
+  } catch (err) {
+    setLoadError(err.response?.data?.detail || "Could not load orders. Check your connection and refresh.");
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
-  useEffect(() => { loadOrders(); }, []);
+ useEffect(() => {
+  loadOrders();
+
+  const interval = setInterval(() => {
+    loadOrders({ quiet: true });
+  }, 10000);
+
+  return () => clearInterval(interval);
+}, [loadOrders]);
 
   const sortedOrders = useMemo(() => [...orders].sort((a, b) => {
     const aActive = ACTIVE_STATUSES.includes(a.status) ? 0 : 1;
